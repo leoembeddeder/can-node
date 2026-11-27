@@ -6,14 +6,13 @@
 
 #include "unity.h"
 
-uint64_t tb_now_us;
-
 /* The byte after the usable part of a receive buffer: the instance must never write it. */
 #define GUARD_BYTE 0x5AU
 
+uint64_t tb_now_us;
+
 /* ------------------------------------------------------------------------ the callbacks */
 
-/* Every mutating call from inside a callback must be refused and change nothing. */
 static void probe_reentry(tb_end_t *end)
 {
     const uint8_t byte = 0x11U;
@@ -48,7 +47,7 @@ static bool cb_send_frame(void *context, const can_frame_t *frame)
     return taken;
 }
 
-static void cb_ff_indication(void *context, uint16_t length)
+static void cb_ff_indication(void *context, uint32_t length)
 {
     tb_end_t *end = context;
 
@@ -60,7 +59,7 @@ static void cb_ff_indication(void *context, uint16_t length)
 }
 
 static bool cb_indication(void *context, isotp_result_t result, const uint8_t *data,
-                          uint16_t length)
+                          uint32_t length)
 {
     tb_end_t *end = context;
 
@@ -75,7 +74,9 @@ static bool cb_indication(void *context, isotp_result_t result, const uint8_t *d
         TEST_ASSERT_TRUE(length >= 1U);
         TEST_ASSERT_TRUE(length <= end->buffer_size);
         TEST_ASSERT_TRUE(data == end->buffer);
-        (void)memcpy(end->message, data, length);
+        if (length <= sizeof(end->message)) {
+            (void)memcpy(end->message, data, length);
+        }
         end->message_length = length;
         end->messages++;
     } else {
@@ -110,13 +111,16 @@ isotp_config_t tb_config(uint32_t tx_id, uint32_t rx_id)
                             .n_br_us = 100000U,
                             .n_cs_us = 200000U,
                             .extended_ids = false,
+                            .can_fd = false,
+                            .can_fd_brs = false,
+                            .tx_dl = 0U,
                             .rx_bs = 0U,
                             .rx_stmin = 0U,
                             .rx_wft_max = 0U,
                             .tx_wft_max = 0U};
 }
 
-void tb_start(tb_end_t *end, const isotp_config_t *config, uint16_t buffer_size)
+void tb_start(tb_end_t *end, const isotp_config_t *config, uint32_t buffer_size)
 {
     const isotp_callbacks_t callbacks = {.send_frame = cb_send_frame,
                                          .ff_indication = cb_ff_indication,
@@ -124,8 +128,8 @@ void tb_start(tb_end_t *end, const isotp_config_t *config, uint16_t buffer_size)
                                          .confirm = cb_confirm,
                                          .context = end};
 
-    if ((buffer_size < 1U) || (buffer_size > ISOTP_MAX_LENGTH)) {
-        TEST_FAIL_MESSAGE("a test buffer has 1..4095 bytes");
+    if ((buffer_size < 1U) || (buffer_size > TB_MAX_LENGTH)) {
+        TEST_FAIL_MESSAGE("a test buffer has 1..TB_MAX_LENGTH bytes");
         return;
     }
     (void)memset(end, 0, sizeof(*end));
@@ -154,12 +158,25 @@ can_frame_t tb_take(tb_end_t *end)
 
 void tb_take_expect(tb_end_t *end, const uint8_t expected[8])
 {
+    tb_take_expect_len(end, 8U, expected);
+}
+
+void tb_take_expect_len(tb_end_t *end, uint8_t expected_dlc, const uint8_t *expected)
+{
     const can_frame_t frame = tb_take(end);
+    uint8_t expected_flags = end->config.extended_ids ? (uint8_t)CAN_FLAG_EXT : 0U;
+
+    if (end->config.can_fd) {
+        expected_flags |= (uint8_t)CAN_FLAG_FD;
+        if (end->config.can_fd_brs) {
+            expected_flags |= (uint8_t)CAN_FLAG_BRS;
+        }
+    }
 
     TEST_ASSERT_EQUAL_HEX32(end->config.tx_id, frame.id);
-    TEST_ASSERT_EQUAL_HEX8(end->config.extended_ids ? CAN_FLAG_EXT : 0U, frame.flags);
-    TEST_ASSERT_EQUAL_UINT8(8U, frame.dlc);
-    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, frame.data, 8U);
+    TEST_ASSERT_EQUAL_HEX8(expected_flags, frame.flags);
+    TEST_ASSERT_EQUAL_UINT8(expected_dlc, frame.dlc);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, frame.data, expected_dlc);
 }
 
 bool tb_confirm(tb_end_t *end)
@@ -197,6 +214,29 @@ bool tb_inject8(tb_end_t *end, uint8_t count, const uint8_t *bytes)
     (void)memset(data, 0xCC, sizeof(data));
     (void)memcpy(data, bytes, count);
     return tb_inject(end, 8U, data);
+}
+
+bool tb_inject_fd(tb_end_t *end, uint8_t dlc, const uint8_t *bytes)
+{
+    can_frame_t frame;
+    uint8_t flags = end->config.extended_ids ? (uint8_t)CAN_FLAG_EXT : 0U;
+
+    TEST_ASSERT_TRUE(dlc <= CAN_FD_MAX_DL);
+    if (end->config.can_fd) {
+        flags |= (uint8_t)CAN_FLAG_FD;
+        if (end->config.can_fd_brs) {
+            flags |= (uint8_t)CAN_FLAG_BRS;
+        }
+    }
+    (void)memset(&frame, 0xEE, sizeof(frame));
+    frame.id = end->config.rx_id;
+    frame.flags = flags;
+    frame.dlc = dlc;
+    if (dlc > 0U) {
+        (void)memcpy(frame.data, bytes, dlc);
+    }
+    end->given++;
+    return isotp_on_frame(&end->tp, &frame, tb_now_us);
 }
 
 tb_event_t tb_last_ind(const tb_end_t *end)
@@ -365,7 +405,6 @@ bool tb_run(tb_end_t *a, tb_end_t *b, const tb_link_t *link, uint64_t limit_us)
                 tb_now_us = t_next;
             }
             if (t_conf == t_next) {
-                /* A confirmation queued earlier goes before a frame that ends at the same time. */
                 const uint32_t i = (next_confirm(&confirms[0]) == t_next) ? 0U : 1U;
                 pop_confirm(&confirms[i]);
                 (void)isotp_on_tx_done(&ends[i]->tp, tb_now_us);
@@ -406,9 +445,20 @@ void tb_checker_init(tb_checker_t *checker, uint32_t a_tx, uint32_t b_tx)
     (void)memset(checker, 0, sizeof(*checker));
     checker->a_tx = a_tx;
     checker->b_tx = b_tx;
+    checker->a_tx_dl = 8U;
+    checker->b_tx_dl = 8U;
 }
 
-/* The checker's own reading of STmin, from the table in docs/diagnostics.md. */
+void tb_checker_init_fd(tb_checker_t *checker, uint32_t a_tx, uint32_t b_tx, uint8_t a_tx_dl,
+                        uint8_t b_tx_dl, bool brs)
+{
+    tb_checker_init(checker, a_tx, b_tx);
+    checker->can_fd = true;
+    checker->can_fd_brs = brs;
+    checker->a_tx_dl = a_tx_dl;
+    checker->b_tx_dl = b_tx_dl;
+}
+
 static uint32_t checker_stmin_us(uint8_t value)
 {
     uint32_t us = 127000U;
@@ -435,9 +485,10 @@ static void violation(tb_checker_t *checker, const char *rule, const can_frame_t
     TEST_FAIL_MESSAGE(text);
 }
 
-static void check_padding(tb_checker_t *checker, const can_frame_t *frame, uint32_t first)
+static void check_padding(tb_checker_t *checker, const can_frame_t *frame, uint32_t first,
+                          uint32_t total)
 {
-    for (uint32_t i = first; i < 8U; i++) {
+    for (uint32_t i = first; i < total; i++) {
         if (frame->data[i] != 0xCCU) {
             violation(checker, "padding is 0xCC", frame);
         }
@@ -458,55 +509,102 @@ static void complete(tb_checker_t *checker, uint32_t d, const can_frame_t *frame
     checker->messages[d]++;
 }
 
+static uint8_t wire_pad_len(uint8_t raw)
+{
+    return (raw <= 8U) ? 8U : can_fd_pad_len(raw);
+}
+
 void tb_checker_monitor(void *context, const tb_end_t *from, const can_frame_t *frame,
                         uint64_t start_us, uint64_t end_us)
 {
     tb_checker_t *checker = context;
     const uint32_t d = (frame->id == checker->a_tx) ? 0U : 1U;
     const uint32_t r = 1U - d;
+    const uint8_t dir_tx_dl = (d == 0U) ? checker->a_tx_dl : checker->b_tx_dl;
     tb_direction_t *dir = &checker->dir[d];
     tb_direction_t *rev = &checker->dir[r];
     const uint8_t type = frame->data[0] >> 4U;
     const uint8_t low = frame->data[0] & 0x0FU;
+    const uint8_t expected_flags =
+        (uint8_t)((checker->can_fd ? CAN_FLAG_FD : 0U) |
+                  ((checker->can_fd && checker->can_fd_brs) ? CAN_FLAG_BRS : 0U));
 
     (void)from;
     checker->frames++;
     if ((frame->id != checker->a_tx) && (frame->id != checker->b_tx)) {
         violation(checker, "the identifier is one of the connection's", frame);
     }
-    if ((frame->dlc != 8U) || (frame->flags != 0U)) {
-        violation(checker, "every frame is a data frame of 8 bytes", frame);
+    if (!checker->can_fd) {
+        if ((frame->dlc != 8U) || (frame->flags != 0U)) {
+            violation(checker, "every frame is a data frame of 8 bytes", frame);
+        }
+    } else if (!can_frame_is_valid(frame) || (frame->flags != expected_flags)) {
+        violation(checker, "every frame carries valid CAN FD flags and discrete length", frame);
     }
 
     switch (type) {
-    case 0x0U: /* SF */
-        if ((low == 0U) || (low > 7U)) {
-            violation(checker, "SF_DL is 1..7", frame);
+    case 0x0U: { /* SF */
+        uint32_t sf_dl;
+        uint32_t off;
+
+        if (frame->dlc <= 8U) {
+            if (frame->dlc != 8U) {
+                violation(checker, "classical SF is padded to 8 bytes", frame);
+            }
+            if ((low == 0U) || (low > 7U)) {
+                violation(checker, "SF_DL is 1..7 when CAN_DL <= 8", frame);
+            }
+            sf_dl = low;
+            off = 1U;
+        } else {
+            sf_dl = frame->data[1];
+            off = 2U;
+            if ((low != 0U) || (sf_dl < 8U) || (sf_dl > (uint32_t)(dir_tx_dl - 2U)) ||
+                (wire_pad_len((uint8_t)(sf_dl + 2U)) != frame->dlc)) {
+                violation(checker, "CAN FD SF must satisfy Table 13", frame);
+            }
         }
         if (dir->receiving) {
             violation(checker, "no SF while a segmented message is under way", frame);
         }
-        check_padding(checker, frame, 1U + low);
-        dir->length = low;
-        (void)memcpy(dir->message, &frame->data[1], low);
+        check_padding(checker, frame, off + sf_dl, frame->dlc);
+        dir->length = sf_dl;
+        (void)memcpy(dir->message, &frame->data[off], sf_dl);
         complete(checker, d, frame);
         break;
+    }
     case 0x1U: { /* FF */
-        const uint32_t ff_dl = ((uint32_t)low << 8U) | frame->data[1];
-        if ((ff_dl < 8U) || (ff_dl > 4095U)) {
-            violation(checker, "FF_DL is 8..4095 (no escape from this sender)", frame);
+        uint32_t ff_dl = ((uint32_t)low << 8U) | frame->data[1];
+        uint32_t pci_len = 2U;
+        const uint32_t ff_dl_min = (frame->dlc == 8U) ? 8U : ((uint32_t)frame->dlc - 1U);
+
+        if (frame->dlc != dir_tx_dl) {
+            violation(checker, "FF uses the sender's full TX_DL", frame);
+        }
+        if (ff_dl == 0U) {
+            ff_dl = ((uint32_t)frame->data[2] << 24U) | ((uint32_t)frame->data[3] << 16U) |
+                    ((uint32_t)frame->data[4] << 8U) | (uint32_t)frame->data[5];
+            pci_len = 6U;
+            if (ff_dl <= 4095U) {
+                violation(checker, "escape FF_DL must exceed 4095", frame);
+            }
+        } else if ((ff_dl < ff_dl_min) || (ff_dl > 4095U)) {
+            violation(checker, "FF_DL satisfies Table 14 (FF_DLmin..4095)", frame);
         }
         if (dir->receiving) {
             violation(checker, "no FF while a segmented message is under way", frame);
         }
         dir->receiving = true;
         dir->cts_seen = false;
+        dir->rx_dl = frame->dlc;
         dir->length = ff_dl;
-        dir->got = 6U;
+        dir->got = (uint32_t)frame->dlc - pci_len;
         dir->next_sn = 1U;
         dir->in_block = 0U;
         dir->cf_before = false;
-        (void)memcpy(dir->message, &frame->data[2], 6U);
+        if (dir->got <= sizeof(dir->message)) {
+            (void)memcpy(dir->message, &frame->data[pci_len], dir->got);
+        }
         break;
     }
     case 0x2U: { /* CF */
@@ -522,12 +620,19 @@ void tb_checker_monitor(void *context, const tb_end_t *from, const can_frame_t *
         if (dir->cf_before && ((start_us - dir->last_cf_end) < dir->stmin_us)) {
             violation(checker, "STmin between two CFs", frame);
         }
-        uint32_t n = dir->length - dir->got;
-        if (n > 7U) {
-            n = 7U;
+        const uint32_t cf_max = (uint32_t)dir->rx_dl - 1U;
+        const uint32_t rem = dir->length - dir->got;
+        const bool is_last = rem <= cf_max;
+        const uint32_t n = is_last ? rem : cf_max;
+        const uint8_t expected_dlc = is_last ? wire_pad_len((uint8_t)(n + 1U)) : dir->rx_dl;
+
+        if (frame->dlc != expected_dlc) {
+            violation(checker, "CF length matches RX_DL or minimal padded last CF", frame);
         }
-        check_padding(checker, frame, 1U + n);
-        (void)memcpy(&dir->message[dir->got], &frame->data[1], n);
+        check_padding(checker, frame, 1U + n, frame->dlc);
+        if ((dir->got + n) <= sizeof(dir->message)) {
+            (void)memcpy(&dir->message[dir->got], &frame->data[1], n);
+        }
         dir->got += n;
         dir->next_sn = (uint8_t)((dir->next_sn + 1U) & 0x0FU);
         dir->in_block++;
@@ -541,7 +646,10 @@ void tb_checker_monitor(void *context, const tb_end_t *from, const can_frame_t *
         break;
     }
     case 0x3U: /* FC, about the message the sender of the FC receives */
-        check_padding(checker, frame, 3U);
+        if (frame->dlc != 8U) {
+            violation(checker, "FC is always 8 bytes", frame);
+        }
+        check_padding(checker, frame, 3U, frame->dlc);
         if (!rev->receiving || rev->cts_seen) {
             violation(checker, "an FC only where a sender waits for one", frame);
         }

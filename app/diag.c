@@ -12,7 +12,8 @@
 _Static_assert(DIAG_REQUEST_ID == CAN_DB_UDS_REQUEST_ID, "UDS_Request of the DBC");
 _Static_assert(DIAG_RESPONSE_ID == CAN_DB_UDS_RESPONSE_ID, "UDS_Response of the DBC");
 _Static_assert((DIAG_BLOCK_SIZE >= 1U) && (DIAG_BLOCK_SIZE <= 255U), "BS fits its byte, not 0");
-_Static_assert(DIAG_RX_BUFFER <= ISOTP_MAX_LENGTH, "a buffer lib/isotp uses to its end");
+_Static_assert((DIAG_RX_BUFFER >= 1U) && (DIAG_RX_BUFFER <= ISOTP_FF_DL_12BIT_MAX),
+               "a buffer lib/isotp uses up to 12-bit FF_DL");
 _Static_assert(DIAG_RESPONSES == 2U, "a response in transmission and the one after it");
 _Static_assert(DIAG_RESET_DEADLINE_US == (2U * DIAG_TIMEOUT_US), "the reset's deadline: 2 x N_As");
 _Static_assert(DIAG_HANDOUTS >= ISOTP_PIPELINE_DEPTH, "a record for every frame in the pipeline");
@@ -136,7 +137,7 @@ static void settle(diag_t *d)
         if (!d->sending && (d->response_count > 0U) && !d->reset_due) {
             const diag_response_t *next = &d->responses[d->response_head];
 
-            if (isotp_send(&d->tp, next->data, (uint16_t)next->len, d->call_us) == ISOTP_OK) {
+            if (isotp_send(&d->tp, next->data, next->len, d->call_us) == ISOTP_OK) {
                 d->sending = true;
             } else {
                 /* Refused (a transmission lib/isotp still runs, which only another caller of
@@ -170,7 +171,7 @@ static bool on_send_frame(void *context, const can_frame_t *frame)
 /* A reception ended. A complete request goes to lib/uds at once, which copies what it keeps,
  * so the buffer goes back to lib/isotp when this returns (false). */
 static bool on_indication(void *context, isotp_result_t result, const uint8_t *data,
-                          uint16_t length)
+                          uint32_t length)
 {
     diag_t *d = (diag_t *)context;
 
@@ -225,7 +226,7 @@ bool diag_init(diag_t *d, const diag_port_t *port, const uds_backend_t *backend)
         d->port = *port;
         d->reset_deadline_us = UINT64_MAX;
         d->tx_result = ISOTP_RESULT_OK;
-        ok = isotp_init(&d->tp, &config, &callbacks, d->rx_buffer, (uint16_t)DIAG_RX_BUFFER) &&
+        ok = isotp_init(&d->tp, &config, &callbacks, d->rx_buffer, DIAG_RX_BUFFER) &&
              uds_init(&d->uds, backend);
 
         if (ok) {

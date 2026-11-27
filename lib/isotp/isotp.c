@@ -5,17 +5,6 @@
 #include <string.h>
 
 /*
- * What the module does is described in isotp.h. This file adds how, and the reasons for the
- * points at which the contract needed a decision; each is argued where it is implemented:
- *
- *   - every call acts on the timers of its time first, and again after its work   service()
- *   - a frame of the peer proves the frame it answers                    tx_on_fc(), rx_on_cf()
- *   - which frame a confirmation belongs to                              isotp_on_tx_done()
- *   - a frame whose confirmation is overdue is given up                  give_up_handouts()
- *   - STmin across a block boundary                                      tx_on_fc()
- *   - a valid SF or FF ends what the receiver was doing                  rx_make_way()
- *   - the FF's data waits in the instance while the buffer is kept       rx_on_ff()
- *
  * What holds for an isotp_t between any two calls, from isotp_init() on:
  *
  *   - handouts[0..handout_count-1] are the frames handed out and neither confirmed nor given up,
@@ -23,7 +12,7 @@
  *     time of the last call.
  *   - tx.state is SENT exactly when the sender waits for the confirmation of hand-out
  *     tx.awaited, which is then in handouts; likewise rx.state FC_SENT and rx.awaited. A proven
- *     frame (see CONFIRMATIONS in isotp.h) stays in handouts, but nobody awaits it any more.
+ *     frame stays in handouts, but nobody awaits it any more.
  *   - tx.state DUE or rx.state FC_DUE only while the pipeline is full: a frame that is due is
  *     handed out in the call that made it due if there is room.
  *   - rx.held is set only by an indication with ISOTP_RESULT_OK, and cleared only by
@@ -44,23 +33,29 @@
 /* FF_DLmin for classical CAN with normal addressing: a shorter message is a single frame. */
 #define FF_DL_MIN 8U
 
+/* Escape N_PCI header sizes (bytes, normal addressing). */
+#define SF_ESC_PCI_LEN 2U
+#define FF_STD_PCI_LEN 2U
+#define FF_ESC_PCI_LEN 6U
+
 /* The N_PCI of an FC is 3 bytes: FS, BS, STmin. */
 #define FC_PCI_LENGTH 3U
-
-/* The DLC of every frame sent, and the one an FF must have: the frame is full. */
-#define FRAME_LENGTH CAN_MAX_DLC
 
 /* The largest STmin given in milliseconds, and the range given in 100 microsecond steps. */
 #define STMIN_MS_MAX     0x7FU
 #define STMIN_100US_LOW  0xF1U
 #define STMIN_100US_HIGH 0xF9U
 
-_Static_assert(ISOTP_SF_DATA == (FRAME_LENGTH - 1U), "an SF has 1 byte of N_PCI");
-_Static_assert(ISOTP_FF_DATA == (FRAME_LENGTH - 2U), "an FF has 2 bytes of N_PCI");
-_Static_assert(ISOTP_CF_DATA == (FRAME_LENGTH - 1U), "a CF has 1 byte of N_PCI");
-_Static_assert(ISOTP_MAX_LENGTH == 0xFFFU, "FF_DL has 12 bits");
-_Static_assert(FF_DL_MIN == (ISOTP_SF_DATA + 1U), "the shortest FF message is one byte too long "
-                                                  "for an SF");
+_Static_assert(ISOTP_SF_DATA == (CAN_MAX_DLC - 1U), "classical SF has 1 byte of N_PCI");
+_Static_assert(ISOTP_FF_DATA == (CAN_MAX_DLC - 2U), "classical FF has 2 bytes of N_PCI");
+_Static_assert(ISOTP_CF_DATA == (CAN_MAX_DLC - 1U), "classical CF has 1 byte of N_PCI");
+_Static_assert(ISOTP_FF_DL_12BIT_MAX == 0xFFFU, "12-bit FF_DL fits in 12 bits");
+_Static_assert(ISOTP_FD_MAX_SF_DATA == (CAN_FD_MAX_DL - 2U),
+               "CAN FD SF with escape has 2 bytes of N_PCI");
+_Static_assert(ISOTP_FD_MAX_FF_DATA == (CAN_FD_MAX_DL - 2U),
+               "CAN FD 12-bit FF carries up to 62 data bytes");
+_Static_assert(FF_DL_MIN == (ISOTP_SF_DATA + 1U),
+               "the shortest classical FF message is one byte too long for an SF");
 _Static_assert(ISOTP_PIPELINE_DEPTH <= 255U, "handout_count is a uint8_t");
 _Static_assert(ISOTP_STMIN_RESERVED_US == (STMIN_MS_MAX * 1000U), "a reserved STmin reads 0x7F");
 
@@ -147,10 +142,6 @@ static uint64_t earlier(uint64_t a_us, uint64_t b_us)
 
 /* -------------------------------------------------------------------------------- callbacks */
 
-/* Every callback runs with in_callback set, so that a call back into the instance is refused
- * (see CALLBACKS in isotp.h): the state is consistent when a callback runs, but the call that
- * runs it is not finished. */
-
 static bool call_send_frame(isotp_t *tp, const can_frame_t *frame)
 {
     bool taken;
@@ -162,7 +153,7 @@ static bool call_send_frame(isotp_t *tp, const can_frame_t *frame)
     return taken;
 }
 
-static void call_ff_indication(isotp_t *tp, uint16_t length)
+static void call_ff_indication(isotp_t *tp, uint32_t length)
 {
     if (tp->callbacks.ff_indication != NULL) {
         tp->in_callback = true;
@@ -172,7 +163,7 @@ static void call_ff_indication(isotp_t *tp, uint16_t length)
 }
 
 static bool call_indication(isotp_t *tp, isotp_result_t result, const uint8_t *data,
-                            uint16_t length)
+                            uint32_t length)
 {
     bool keep;
 
@@ -241,15 +232,38 @@ static void remove_handout(isotp_t *tp, uint8_t index)
     tp->stats.outstanding--;
 }
 
-/* A new frame of this instance: the identifier, DLC 8, the N_PCI's first byte, padding after. */
-static void frame_begin(const isotp_t *tp, can_frame_t *frame, uint8_t pci)
+/* ------------------------------------------------------------------- CAN FD / frame layout */
+
+/* Valid TX_DL / RX_DL values per ISO 15765-2:2016: {8, 12, 16, 20, 24, 32, 48, 64}. */
+static bool tx_dl_valid(uint8_t dl)
 {
-    frame->id = tp->config.tx_id;
-    frame->flags = tp->config.extended_ids ? CAN_FLAG_EXT : 0U;
-    frame->dlc = (uint8_t)FRAME_LENGTH;
-    for (uint32_t i = 0U; i < FRAME_LENGTH; i++) {
-        frame->data[i] = ISOTP_PADDING;
+    return (dl >= CAN_MAX_DLC) && can_fd_len_is_valid(dl);
+}
+
+/* Round a transmitted N_PDU size (bytes) up to the padded container length {8, 12..64}. */
+static uint8_t frame_pad_len(uint8_t raw_len)
+{
+    return (raw_len <= CAN_MAX_DLC) ? (uint8_t)CAN_MAX_DLC : can_fd_pad_len(raw_len);
+}
+
+/* Prepare a transmitted frame: zero unused tail, fill `can_dl` bytes with ISOTP_PADDING, write
+ * byte 0 N_PCI, and apply CAN/CAN-FD flags from config. */
+static void frame_begin(const isotp_t *tp, can_frame_t *frame, uint8_t can_dl, uint8_t pci)
+{
+    uint8_t flags = tp->config.extended_ids ? (uint8_t)CAN_FLAG_EXT : 0U;
+
+    if (tp->config.can_fd) {
+        flags |= (uint8_t)CAN_FLAG_FD;
+        if (tp->config.can_fd_brs) {
+            flags |= (uint8_t)CAN_FLAG_BRS;
+        }
     }
+
+    (void)memset(frame, 0, sizeof(*frame));
+    frame->id = tp->config.tx_id;
+    frame->flags = flags;
+    frame->dlc = can_dl;
+    (void)memset(frame->data, (int)ISOTP_PADDING, can_dl);
     frame->data[0] = pci;
 }
 
@@ -318,9 +332,7 @@ static void tx_confirmed(isotp_t *tp, uint64_t now_us)
 /*
  * An FC arrived. It is processed only by a sender that waits for one; that includes a sender
  * whose FF or last CF of a block is handed out and not confirmed yet: the FC answers that frame,
- * so the frame was sent, and the FC is processed as if the confirmation had come with it (see
- * CONFIRMATIONS in isotp.h). The frame's own confirmation, when it comes, finds nobody waiting
- * for it.
+ * so the frame was sent, and the FC is processed as if the confirmation had come with it.
  */
 static bool tx_on_fc(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
 {
@@ -352,11 +364,9 @@ static bool tx_on_fc(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
             tp->tx.stmin_us = isotp_stmin_us(stmin);
             tp->tx.block_count = 0U;
             tp->tx.wft_count = 0U;
-            /* STmin holds between any two CFs, so also between the last CF of a block and the
-             * first of the next, in case the receiver answered faster than STmin. It counts from
-             * the previous CF's confirmation, or from now if that CF was proven by this FC and
-             * so is known to have ended before now. After the FF there is no previous CF. */
-            if (tp->tx.offset > ISOTP_FF_DATA) {
+            /* STmin holds between any two CFs (also across a block boundary), never before the
+             * very first CF after an FF. */
+            if (tp->tx.sent_cf) {
                 const uint64_t reference_us = tp->tx.cf_proven ? now_us : tp->tx.cf_done_us;
                 const uint64_t allowed_us = time_after(reference_us, tp->tx.stmin_us);
 
@@ -391,29 +401,63 @@ static bool tx_on_fc(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
 static void tx_emit(isotp_t *tp, uint64_t now_us)
 {
     if ((tp->tx.state == ISOTP_TX_DUE) && pipeline_has_room(tp)) {
+        const uint8_t tx_dl = tp->config.tx_dl;
         can_frame_t frame;
-        uint16_t count;
+        uint32_t count;
 
         switch (tp->tx.frame) {
         case ISOTP_FRAME_SF:
-            frame_begin(tp, &frame, (uint8_t)((PCI_TYPE_SF << 4U) | tp->tx.length));
             count = tp->tx.length;
-            (void)memcpy(&frame.data[1], tp->tx.data, count);
-            break;
-        case ISOTP_FRAME_FF:
-            frame_begin(tp, &frame, (uint8_t)((PCI_TYPE_FF << 4U) | (tp->tx.length >> 8U)));
-            frame.data[1] = (uint8_t)(tp->tx.length & 0xFFU);
-            count = (uint16_t)ISOTP_FF_DATA;
-            (void)memcpy(&frame.data[2], tp->tx.data, count);
-            break;
-        default: /* a CF */
-            frame_begin(tp, &frame, (uint8_t)((PCI_TYPE_CF << 4U) | tp->tx.sn));
-            count = (uint16_t)(tp->tx.length - tp->tx.offset);
-            if (count > ISOTP_CF_DATA) {
-                count = (uint16_t)ISOTP_CF_DATA;
+            if (count <= ISOTP_SF_DATA) {
+                /* ISO 15765-2:2016 Table 9 & Table 12: SF_DL 1..7 uses 1-byte PCI with CAN_DL 8,
+                 * even when TX_DL > 8 is configured. */
+                frame_begin(tp, &frame, (uint8_t)CAN_MAX_DLC,
+                            (uint8_t)((PCI_TYPE_SF << 4U) | count));
+                (void)memcpy(&frame.data[1], tp->tx.data, count);
+            } else {
+                /* ISO 15765-2:2016 Table 9(a), Table 13 & Clause 10.4.2.3:
+                 * 8 <= SF_DL <= TX_DL - 2 uses 2-byte escape PCI (0x00, SF_DL) padded to the
+                 * smallest discrete CAN FD size >= (2 + SF_DL). */
+                const uint8_t can_dl = frame_pad_len((uint8_t)(SF_ESC_PCI_LEN + count));
+
+                frame_begin(tp, &frame, can_dl, (uint8_t)(PCI_TYPE_SF << 4U));
+                frame.data[1] = (uint8_t)count;
+                (void)memcpy(&frame.data[SF_ESC_PCI_LEN], tp->tx.data, count);
             }
+            break;
+
+        case ISOTP_FRAME_FF:
+            /* An FF always fills the configured TX_DL. */
+            if (tp->tx.length <= ISOTP_FF_DL_12BIT_MAX) {
+                frame_begin(tp, &frame, tx_dl,
+                            (uint8_t)((PCI_TYPE_FF << 4U) | ((tp->tx.length >> 8U) & 0x0FU)));
+                frame.data[1] = (uint8_t)(tp->tx.length & 0xFFU);
+                count = (uint32_t)tx_dl - FF_STD_PCI_LEN;
+                (void)memcpy(&frame.data[FF_STD_PCI_LEN], tp->tx.data, count);
+            } else {
+                /* ISO 15765-2:2016 Table 9(b): 32-bit escape FF_DL (> 4095 bytes). */
+                frame_begin(tp, &frame, tx_dl, (uint8_t)(PCI_TYPE_FF << 4U));
+                frame.data[1] = 0x00U;
+                frame.data[2] = (uint8_t)((tp->tx.length >> 24U) & 0xFFU);
+                frame.data[3] = (uint8_t)((tp->tx.length >> 16U) & 0xFFU);
+                frame.data[4] = (uint8_t)((tp->tx.length >> 8U) & 0xFFU);
+                frame.data[5] = (uint8_t)(tp->tx.length & 0xFFU);
+                count = (uint32_t)tx_dl - FF_ESC_PCI_LEN;
+                (void)memcpy(&frame.data[FF_ESC_PCI_LEN], tp->tx.data, count);
+            }
+            break;
+
+        default: { /* a CF */
+            const uint32_t cf_max = (uint32_t)tx_dl - 1U;
+            const uint32_t rem = tp->tx.length - tp->tx.offset;
+            uint8_t can_dl;
+
+            count = (rem > cf_max) ? cf_max : rem;
+            can_dl = (count == cf_max) ? tx_dl : frame_pad_len((uint8_t)(1U + count));
+            frame_begin(tp, &frame, can_dl, (uint8_t)((PCI_TYPE_CF << 4U) | tp->tx.sn));
             (void)memcpy(&frame.data[1], &tp->tx.data[tp->tx.offset], count);
             break;
+        }
         }
 
         if (!call_send_frame(tp, &frame)) {
@@ -430,12 +474,13 @@ static void tx_emit(isotp_t *tp, uint64_t now_us)
                 if (n_cs_us > tp->config.n_cs_us) {
                     tp->stats.n_cs_late++;
                 }
+                tp->tx.sent_cf = true;
                 tp->tx.sn = (uint8_t)((tp->tx.sn + 1U) & 0x0FU);
                 if (tp->tx.bs != 0U) { /* BS 0: one block, nothing to count */
                     tp->tx.block_count++;
                 }
             }
-            tp->tx.offset = (uint16_t)(tp->tx.offset + count);
+            tp->tx.offset += count;
             tp->tx.awaited = record_handout(tp, false, now_us);
             tp->tx.state = ISOTP_TX_SENT;
         }
@@ -474,7 +519,7 @@ static void rx_end(isotp_t *tp, isotp_result_t result)
 }
 
 /* A message of `length` bytes is complete in the buffer. */
-static void rx_deliver(isotp_t *tp, uint16_t length)
+static void rx_deliver(isotp_t *tp, uint32_t length)
 {
     tp->rx.state = ISOTP_RX_IDLE;
     tp->rx.length = length;
@@ -484,8 +529,8 @@ static void rx_deliver(isotp_t *tp, uint16_t length)
 
 /*
  * A valid SF or FF arrived: whatever the receiver was doing ends. A reception in progress ends
- * with N_UNEXP_PDU (the table of unexpected N_PDUs); an OVFLW that is still due is not sent any
- * more, since the sender has moved on to a new message.
+ * with N_UNEXP_PDU; an OVFLW that is still due is not sent any more, since the sender has moved
+ * on to a new message.
  */
 static void rx_make_way(isotp_t *tp)
 {
@@ -502,8 +547,8 @@ static void rx_make_way(isotp_t *tp)
 /* The buffer is free for the message whose FF is waiting: its data goes first. */
 static void rx_take_buffer(isotp_t *tp)
 {
-    (void)memcpy(tp->buffer, tp->rx.stash, ISOTP_FF_DATA);
-    tp->rx.offset = (uint16_t)ISOTP_FF_DATA;
+    (void)memcpy(tp->buffer, tp->rx.stash, tp->rx.stash_len);
+    tp->rx.offset = (uint32_t)tp->rx.stash_len;
     tp->rx.sn = 1U;
     tp->rx.block_count = 0U;
     tp->rx.fc = ISOTP_FRAME_FC_CTS;
@@ -512,24 +557,43 @@ static void rx_take_buffer(isotp_t *tp)
 
 static bool rx_on_sf(isotp_t *tp, const can_frame_t *frame)
 {
-    const uint8_t sf_dl = (uint8_t)(frame->data[0] & 0x0FU);
+    const uint8_t low_nibble = (uint8_t)(frame->data[0] & 0x0FU);
+    uint8_t sf_dl;
+    uint8_t data_offset;
+    bool length_ok;
+    bool size_ok;
     bool processed = false;
 
-    if ((sf_dl == 0U) || (sf_dl > ISOTP_SF_DATA)) {
+    if (frame->dlc <= CAN_MAX_DLC) {
+        sf_dl = low_nibble;
+        data_offset = 1U;
+        length_ok = (sf_dl >= 1U) && (sf_dl <= ISOTP_SF_DATA);
+        size_ok = frame->dlc >= (uint8_t)(sf_dl + 1U);
+    } else {
+        /* CAN FD SF (CAN_DL > 8): ISO 15765-2:2016 Table 9(a) & Table 13. */
+        sf_dl = frame->data[1];
+        data_offset = SF_ESC_PCI_LEN;
+        length_ok = (low_nibble == 0U) && (sf_dl >= 8U) &&
+                    (sf_dl <= (uint8_t)(frame->dlc - SF_ESC_PCI_LEN)) &&
+                    (can_fd_pad_len((uint8_t)(sf_dl + SF_ESC_PCI_LEN)) == frame->dlc);
+        size_ok = true;
+    }
+
+    if (!length_ok) {
         tp->stats.ignored[ISOTP_IGNORED_LENGTH]++;
-    } else if (frame->dlc < (sf_dl + 1U)) {
+    } else if (!size_ok) {
         tp->stats.ignored[ISOTP_IGNORED_SHORT]++;
     } else {
         processed = true;
         tp->stats.frames_in[ISOTP_FRAME_SF]++;
         rx_make_way(tp);
-        if (sf_dl > tp->buffer_size) {
+        if ((uint32_t)sf_dl > tp->buffer_size) {
             tp->stats.rx_sf_too_long++;
         } else if (tp->rx.held) {
             tp->stats.rx_sf_busy++;
         } else {
-            (void)memcpy(tp->buffer, &frame->data[1], sf_dl);
-            rx_deliver(tp, sf_dl);
+            (void)memcpy(tp->buffer, &frame->data[data_offset], sf_dl);
+            rx_deliver(tp, (uint32_t)sf_dl);
         }
     }
 
@@ -538,40 +602,45 @@ static bool rx_on_sf(isotp_t *tp, const can_frame_t *frame)
 
 /*
  * An FF arrived. Its data is kept in the instance (stash) until the buffer is free: at once
- * unless the upper layer keeps the buffer, in which case the reception waits for it (see
- * RECEPTION in isotp.h). One path for both cases, at the cost of copying 6 bytes twice.
+ * unless the upper layer keeps the buffer, in which case the reception waits for it.
  */
 static bool rx_on_ff(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
 {
     bool processed = false;
 
-    if (frame->dlc < FRAME_LENGTH) {
+    if (frame->dlc < CAN_MAX_DLC) {
         tp->stats.ignored[ISOTP_IGNORED_SHORT]++;
     } else {
+        const uint8_t rx_dl = frame->dlc;
+        const uint32_t ff_dl_min = (rx_dl == CAN_MAX_DLC) ? FF_DL_MIN : ((uint32_t)rx_dl - 1U);
         uint32_t ff_dl = ((uint32_t)(frame->data[0] & 0x0FU) << 8U) | (uint32_t)frame->data[1];
         const bool escape = ff_dl == 0U;
+        const uint8_t pci_len = escape ? (uint8_t)FF_ESC_PCI_LEN : (uint8_t)FF_STD_PCI_LEN;
 
         if (escape) {
             ff_dl = ((uint32_t)frame->data[2] << 24U) | ((uint32_t)frame->data[3] << 16U) |
                     ((uint32_t)frame->data[4] << 8U) | (uint32_t)frame->data[5];
         }
 
-        if ((escape && (ff_dl <= ISOTP_MAX_LENGTH)) || ((!escape) && (ff_dl < FF_DL_MIN))) {
+        if ((escape && (ff_dl <= ISOTP_FF_DL_12BIT_MAX)) || ((!escape) && (ff_dl < ff_dl_min))) {
             tp->stats.ignored[ISOTP_IGNORED_LENGTH]++;
         } else {
+            const uint8_t stash_len = (uint8_t)(rx_dl - pci_len);
+
             processed = true;
             tp->stats.frames_in[ISOTP_FRAME_FF]++;
             rx_make_way(tp);
             tp->rx.since_us = now_us;
             if (ff_dl > tp->buffer_size) {
-                /* Every escape FF lands here: its FF_DL is above ISOTP_MAX_LENGTH. */
                 tp->stats.rx_overflow++;
                 tp->rx.fc = ISOTP_FRAME_FC_OVFLW;
                 tp->rx.state = ISOTP_RX_FC_DUE;
             } else {
-                tp->rx.length = (uint16_t)ff_dl;
+                tp->rx.rx_dl = rx_dl;
+                tp->rx.stash_len = stash_len;
+                tp->rx.length = ff_dl;
                 tp->rx.wft_count = 0U;
-                (void)memcpy(tp->rx.stash, &frame->data[2], ISOTP_FF_DATA);
+                (void)memcpy(tp->rx.stash, &frame->data[pci_len], stash_len);
                 tp->stats.ff_indications++;
                 if (tp->rx.held) {
                     tp->rx.state = ISOTP_RX_WAIT_BUFFER;
@@ -589,8 +658,7 @@ static bool rx_on_ff(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
 
 /*
  * A CF arrived. It is taken by a reception that expects CFs: one in RX_CF, and one whose FC CTS
- * is handed out and not confirmed yet, because the CF answers that FC and so proves it was sent
- * (see CONFIRMATIONS in isotp.h). The FC's own confirmation then finds nobody waiting for it.
+ * is handed out and not confirmed yet, because the CF answers that FC and so proves it was sent.
  */
 static bool rx_on_cf(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
 {
@@ -601,13 +669,17 @@ static bool rx_on_cf(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
     if (!expecting) {
         tp->stats.ignored[ISOTP_IGNORED_UNEXPECTED_CF]++;
     } else {
-        uint16_t count = (uint16_t)(tp->rx.length - tp->rx.offset);
+        const uint32_t cf_max = (uint32_t)tp->rx.rx_dl - 1U;
+        const uint32_t remaining = tp->rx.length - tp->rx.offset;
+        const bool is_last = remaining <= cf_max;
+        const uint32_t count = is_last ? remaining : cf_max;
+        const uint8_t min_len = (uint8_t)(count + 1U);
+        const bool bad_len =
+            (frame->dlc > tp->rx.rx_dl) || ((!is_last) && (frame->dlc != tp->rx.rx_dl)) ||
+            (is_last && (frame->dlc < min_len)) ||
+            (is_last && (frame->dlc > CAN_MAX_DLC) && (frame->dlc != can_fd_pad_len(min_len)));
 
-        if (count > ISOTP_CF_DATA) {
-            count = (uint16_t)ISOTP_CF_DATA;
-        }
-
-        if (frame->dlc < (count + 1U)) {
+        if (bad_len) {
             tp->stats.ignored[ISOTP_IGNORED_SHORT]++;
         } else {
             processed = true;
@@ -620,7 +692,7 @@ static bool rx_on_cf(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
                 }
                 tp->rx.state = ISOTP_RX_CF;
                 (void)memcpy(&tp->buffer[tp->rx.offset], &frame->data[1], count);
-                tp->rx.offset = (uint16_t)(tp->rx.offset + count);
+                tp->rx.offset += count;
                 tp->rx.sn = (uint8_t)((tp->rx.sn + 1U) & 0x0FU);
                 if (tp->config.rx_bs != 0U) { /* BS 0: one block, nothing to count */
                     tp->rx.block_count++;
@@ -681,7 +753,8 @@ static void rx_emit(isotp_t *tp, uint64_t now_us)
         const bool cts = tp->rx.fc == ISOTP_FRAME_FC_CTS;
         can_frame_t frame;
 
-        frame_begin(tp, &frame, (uint8_t)((PCI_TYPE_FC << 4U) | flow_status(tp->rx.fc)));
+        frame_begin(tp, &frame, (uint8_t)CAN_MAX_DLC,
+                    (uint8_t)((PCI_TYPE_FC << 4U) | flow_status(tp->rx.fc)));
         frame.data[1] = cts ? tp->config.rx_bs : 0U;
         frame.data[2] = cts ? tp->config.rx_stmin : 0U;
 
@@ -735,12 +808,6 @@ static void rx_timers(isotp_t *tp, uint64_t now_us)
 
 /* ---------------------------------------------------------------------- driving it all */
 
-/*
- * Frames whose N_As or N_Ar has run out are given up: by the rule of CONFIRMATIONS in isotp.h
- * their confirmation will not come any more, so they leave the hand-outs wherever they are, and
- * the side that still waits for one ends with N_TIMEOUT_A. A frame that is not the oldest can
- * run out first when N_Ar is shorter than N_As.
- */
 static void give_up_handouts(isotp_t *tp, uint64_t now_us)
 {
     uint8_t i = 0U;
@@ -766,7 +833,6 @@ static void give_up_handouts(isotp_t *tp, uint64_t now_us)
     }
 }
 
-/* Act on everything that has run out by `now_us`. */
 static void expire(isotp_t *tp, uint64_t now_us)
 {
     give_up_handouts(tp, now_us);
@@ -774,12 +840,6 @@ static void expire(isotp_t *tp, uint64_t now_us)
     rx_timers(tp, now_us);
 }
 
-/*
- * The end of every call: the timers once more, because the call's own work can set one that has
- * run out at once (an STmin of 0 after a confirmation, an N_Br of 0), then the frames that are
- * due. The receiver's FC goes first when both are due and only one fits: it is what lets a
- * sender go on, and the sender's N_Bs is running.
- */
 static void service(isotp_t *tp, uint64_t now_us)
 {
     expire(tp, now_us);
@@ -819,14 +879,35 @@ static bool id_fits(uint32_t id, bool extended)
     return id <= (extended ? CAN_ID_EXT_MAX : CAN_ID_STD_MAX);
 }
 
+static bool frame_belongs_to_connection(const isotp_t *tp, const can_frame_t *frame)
+{
+    const bool ext = (frame->flags & CAN_FLAG_EXT) != 0U;
+    const bool rtr = (frame->flags & CAN_FLAG_RTR) != 0U;
+    const bool is_fd = (frame->flags & CAN_FLAG_FD) != 0U;
+
+    return can_frame_is_valid(frame) && (frame->id == tp->config.rx_id) &&
+           (ext == tp->config.extended_ids) && (!rtr) && (tp->config.can_fd || (!is_fd));
+}
+
 bool isotp_init(isotp_t *tp, const isotp_config_t *config, const isotp_callbacks_t *callbacks,
-                uint8_t *rx_buffer, uint16_t rx_size)
+                uint8_t *rx_buffer, uint32_t rx_size)
 {
     bool valid = (tp != NULL) && (config != NULL) && (callbacks != NULL) && (rx_buffer != NULL) &&
                  (rx_size > 0U);
+    uint8_t resolved_tx_dl = (uint8_t)CAN_MAX_DLC;
 
     if (valid) {
-        valid = (callbacks->send_frame != NULL) && (callbacks->indication != NULL) &&
+        bool tx_dl_ok = false;
+
+        if (config->can_fd) {
+            resolved_tx_dl = (config->tx_dl == 0U) ? (uint8_t)CAN_FD_MAX_DL : config->tx_dl;
+            tx_dl_ok = tx_dl_valid(resolved_tx_dl);
+        } else {
+            resolved_tx_dl = (config->tx_dl == 0U) ? (uint8_t)CAN_MAX_DLC : config->tx_dl;
+            tx_dl_ok = (!config->can_fd_brs) && (resolved_tx_dl == CAN_MAX_DLC);
+        }
+
+        valid = tx_dl_ok && (callbacks->send_frame != NULL) && (callbacks->indication != NULL) &&
                 id_fits(config->tx_id, config->extended_ids) &&
                 id_fits(config->rx_id, config->extended_ids) && (config->tx_id != config->rx_id) &&
                 (config->n_as_us > 0U) && (config->n_ar_us > 0U) && (config->n_bs_us > 0U) &&
@@ -836,9 +917,10 @@ bool isotp_init(isotp_t *tp, const isotp_config_t *config, const isotp_callbacks
     if (valid) {
         (void)memset(tp, 0, sizeof(*tp));
         tp->config = *config;
+        tp->config.tx_dl = resolved_tx_dl;
         tp->callbacks = *callbacks;
         tp->buffer = rx_buffer;
-        tp->buffer_size = (rx_size > ISOTP_MAX_LENGTH) ? (uint16_t)ISOTP_MAX_LENGTH : rx_size;
+        tp->buffer_size = rx_size;
         tp->tx.state = ISOTP_TX_IDLE;
         tp->rx.state = ISOTP_RX_IDLE;
         tp->ready = true;
@@ -847,7 +929,7 @@ bool isotp_init(isotp_t *tp, const isotp_config_t *config, const isotp_callbacks
     return valid;
 }
 
-isotp_status_t isotp_send(isotp_t *tp, const uint8_t *data, uint16_t length, uint64_t now_us)
+isotp_status_t isotp_send(isotp_t *tp, const uint8_t *data, uint32_t length, uint64_t now_us)
 {
     isotp_status_t status = ISOTP_E_ARG;
 
@@ -858,11 +940,15 @@ isotp_status_t isotp_send(isotp_t *tp, const uint8_t *data, uint16_t length, uin
         status = ISOTP_E_BUSY;
     } else {
         expire(tp, now_us);
-        if ((data == NULL) || (length == 0U) || (length > ISOTP_MAX_LENGTH)) {
+        if ((data == NULL) || (length == 0U)) {
             status = ISOTP_E_ARG;
         } else if (tp->tx.state != ISOTP_TX_IDLE) {
             status = ISOTP_E_BUSY;
         } else {
+            const uint32_t sf_max = (tp->config.tx_dl <= CAN_MAX_DLC)
+                                        ? (uint32_t)ISOTP_SF_DATA
+                                        : ((uint32_t)tp->config.tx_dl - SF_ESC_PCI_LEN);
+
             tp->tx.data = data;
             tp->tx.length = length;
             tp->tx.offset = 0U;
@@ -871,8 +957,9 @@ isotp_status_t isotp_send(isotp_t *tp, const uint8_t *data, uint16_t length, uin
             tp->tx.block_count = 0U;
             tp->tx.wft_count = 0U;
             tp->tx.cf_proven = false;
+            tp->tx.sent_cf = false;
             tp->tx.since_us = now_us;
-            tp->tx.frame = (length <= ISOTP_SF_DATA) ? ISOTP_FRAME_SF : ISOTP_FRAME_FF;
+            tp->tx.frame = (length <= sf_max) ? ISOTP_FRAME_SF : ISOTP_FRAME_FF;
             tp->tx.state = ISOTP_TX_DUE;
             tp->stats.tx_requests++;
             status = ISOTP_OK;
@@ -888,13 +975,8 @@ bool isotp_on_frame(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
     bool processed = false;
 
     if (usable(tp) && (frame != NULL)) {
-        /* A data frame of this connection carries exactly the format flag of its identifier:
-         * a remote frame, the other format or an unknown flag is someone else's frame. */
-        const uint8_t flags = tp->config.extended_ids ? CAN_FLAG_EXT : 0U;
-
         expire(tp, now_us);
-        if ((frame->id != tp->config.rx_id) || (frame->flags != flags) ||
-            (frame->dlc > CAN_MAX_DLC)) {
+        if (!frame_belongs_to_connection(tp, frame)) {
             tp->stats.ignored[ISOTP_IGNORED_FOREIGN]++;
         } else if (frame->dlc == 0U) {
             tp->stats.ignored[ISOTP_IGNORED_SHORT]++;
@@ -907,12 +989,6 @@ bool isotp_on_frame(isotp_t *tp, const can_frame_t *frame, uint64_t now_us)
     return processed;
 }
 
-/*
- * The confirmation is the oldest hand-out's (see CONFIRMATIONS in isotp.h). Before it is
- * matched, the hand-outs whose time has run out are given up: their confirmations will not come,
- * so the oldest of the others is the one confirmed. Nothing is handed out before the match,
- * since a new frame must not take a confirmation that was meant for an older one.
- */
 bool isotp_on_tx_done(isotp_t *tp, uint64_t now_us)
 {
     bool matched = false;
@@ -959,9 +1035,6 @@ bool isotp_rx_release(isotp_t *tp, uint64_t now_us)
         if (tp->rx.held) {
             released = true;
             tp->rx.held = false;
-            /* A reception that waits for the buffer gets its FC CTS now; a WAIT that is due but
-             * not out yet is not needed any more. A WAIT that is out gets the CTS after its
-             * confirmation (rx_confirmed). */
             if ((tp->rx.state == ISOTP_RX_WAIT_BUFFER) ||
                 ((tp->rx.state == ISOTP_RX_FC_DUE) && (tp->rx.fc == ISOTP_FRAME_FC_WAIT))) {
                 rx_take_buffer(tp);
@@ -1021,7 +1094,7 @@ uint32_t isotp_stmin_us(uint8_t stmin)
     } else if ((stmin >= STMIN_100US_LOW) && (stmin <= STMIN_100US_HIGH)) {
         us = ((uint32_t)stmin - 0xF0U) * 100U;
     } else {
-        /* reserved: the longest STmin (the standard's rule for a sender) */
+        /* reserved: the longest STmin */
     }
 
     return us;

@@ -106,7 +106,7 @@ bool can_bits_exact(const can_frame_t *frame, can_bits_info_t *out)
 
     /* The header does not say what a NULL `out` means. There is nowhere to put the result,
      * so the call fails in the same way as for an invalid frame. */
-    if ((out != NULL) && can_frame_is_valid(frame)) {
+    if ((out != NULL) && can_frame_is_valid(frame) && ((frame->flags & CAN_FLAG_FD) == 0U)) {
         const bool extended = (frame->flags & CAN_FLAG_EXT) != 0U;
         const bool remote = (frame->flags & CAN_FLAG_RTR) != 0U;
 
