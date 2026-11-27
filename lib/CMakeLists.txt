@@ -1,0 +1,17 @@
+# Portable modules: pure C11, no operating system calls, no dynamic allocation.
+# Each module is a static library fcn_<name>; headers are included as "<name>/<header>.h".
+add_subdirectory(ring)
+add_subdirectory(log)
+add_subdirectory(crc)
+add_subdirectory(can)
+add_subdirectory(e2e)
+add_subdirectory(bms)
+add_subdirectory(dtc)
+add_subdirectory(wdgm)
+add_subdirectory(flash)
+add_subdirectory(sha256)
+add_subdirectory(image)
+add_subdirectory(boot)
+add_subdirectory(bootimg)
+add_subdirectory(isotp)
+add_subdirectory(uds)

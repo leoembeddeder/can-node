@@ -1,0 +1,23 @@
+# Build trees (CMake presets build into build/<preset>; FCN_BUILD_ROOT can move them elsewhere)
+/build/
+
+# Python
+/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Coverage and analysis by-products that can land next to sources
+*.gcda
+*.gcno
+*.dump
+*.ctu-info
+
+# Run-time artifacts of the node and the test harness
+/out/
+
+# Editors
+.vscode/
+.idea/
+*.swp

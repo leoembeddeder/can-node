@@ -1,0 +1,11 @@
+--- a/platform/posix/posix_tick.c
++++ b/platform/posix/posix_tick.c
+@@ -90,7 +90,7 @@
+ /* The number of tick interrupts the kernel has taken (see posix_tick_taken()). */
+ static uint64_t ticks_counted(void)
+ {
+-    return atomic_load(&s_ticks_taken);
++    return (uint64_t)xTaskGetTickCount();
+ }
+ 
+ /* The names are fixed by the linker's --wrap convention. */

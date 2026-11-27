@@ -1,0 +1,53 @@
+# clang-tidy configuration for project C code (run by scripts/static-analysis.sh).
+#
+# Disabled on purpose:
+#   bugprone-easily-swappable-parameters     flags every (offset, length) style signature
+#   readability-magic-numbers                protocol constants are named where it helps;
+#                                            bit positions and byte indices stay literal
+#   readability-identifier-length            i, n, id and dlc are the conventional names
+#   readability-function-cognitive-complexity  state machines are judged by review and tests
+#   readability-else-after-return            conflicts with the single-exit style used in lib/
+#   misc-include-cleaner                     wants one include per symbol; noisy with FreeRTOS
+#   clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+#                                            asks for Annex K (memcpy_s), which glibc and
+#                                            newlib do not provide
+#   cert-err33-c                             duplicates the explicit (void) casts used for
+#                                            deliberately ignored results
+#   bugprone-reserved-identifier, cert-dcl37-c, cert-dcl51-cpp
+#                                            the linker's --wrap convention requires names
+#                                            such as __wrap_usleep and __real_usleep
+#   concurrency-mt-unsafe                    flags strerror/getopt style calls made only from
+#                                            main() before the scheduler starts
+#   readability-redundant-casting            a cast that is redundant on x86-64 is needed where
+#                                            the fixed-width and kernel types map to other base
+#                                            types (uint32_t is unsigned long on arm-none-eabi)
+#
+# clang-diagnostic-* is listed so that clang's own compiler warnings count: the build uses
+# gcc, and without this entry a warning that only clang has would be dropped as "filtered".
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  clang-diagnostic-*,
+  concurrency-*,
+  misc-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-reserved-identifier,
+  -cert-dcl37-c,
+  -cert-dcl51-cpp,
+  -cert-err33-c,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -concurrency-mt-unsafe,
+  -misc-include-cleaner,
+  -readability-else-after-return,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-redundant-casting
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*/(lib|app|platform|tests|config)/.*'
+FormatStyle: file

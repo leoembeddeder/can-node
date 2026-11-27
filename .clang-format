@@ -1,0 +1,24 @@
+# Formatting for all project C code (third_party/ is never reformatted).
+# Check: scripts/static-analysis.sh --format-only    Fix: scripts/format.sh
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+IndentCaseLabels: false
+PointerAlignment: Right
+AlignConsecutiveMacros: Consecutive
+AlignTrailingComments: true
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+InsertBraces: true
+SpaceAfterCStyleCast: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+ReflowComments: false

@@ -1,0 +1,29 @@
+Release build with reintroduce.patch applied (the unblock inside the handler is back).
+Development laptop, 2026-11-15. Latency statistics cut from the JSON lines.
+
+$ plat_selftest irq signal 250 3 1
+interrupt handlers nested 8 deep
+{"test": "irq", "mode": "signal", "nominal_period_us": 250, "mean_raise_period_us": 249.670,
+ "seconds": 3, "load": true, "raised": 14987, "task_wakeups": 5471, "unserved_at_end": 0,
+ "signals_sent": 6303, "serviced_by_signal": 4833, "serviced_by_tick": 1470,
+ "max_handler_nesting": 8, "stack_peak_max_bytes": 13656, "tick_catch_ups": 3319,
+ "tick_dropped": 744, "latency_samples_not_recorded": 0, ...}
+exit status: 1
+
+$ plat_selftest irq signal 100 3 1
+interrupt handlers nested 25 deep
+{"test": "irq", "mode": "signal", "nominal_period_us": 100, "mean_raise_period_us": 99.926,
+ "seconds": 3, "load": true, "raised": 36047, "task_wakeups": 10812, "unserved_at_end": 0,
+ "signals_sent": 13309, "serviced_by_signal": 11411, "serviced_by_tick": 1898,
+ "max_handler_nesting": 25, "stack_peak_max_bytes": 41928, "tick_catch_ups": 3037,
+ "tick_dropped": 606, "latency_samples_not_recorded": 0, ...}
+exit status: 1
+
+$ plat_selftest irq signal 0 2 1
+Segmentation fault (core dumped)
+exit status: 139
+
+For comparison, with the fix (same build type, same machine):
+
+  irq signal 250 3 1   max_handler_nesting 1   stack_peak_max_bytes 2056   exit status 0
+  irq signal 0 2 1     max_handler_nesting 1   stack_peak_max_bytes 2056   exit status 0

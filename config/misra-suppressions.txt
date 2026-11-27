@@ -1,0 +1,41 @@
+// MISRA C:2012 deviations for lib/ and app/, in cppcheck suppression syntax.
+// Each entry is explained in docs/misra-deviations.md. Keep the two files in step.
+// An entry is added when a finding exists and a deviation is the right answer to it, never
+// in advance: a suppression with nothing behind it would wave the first real violation through.
+
+// Rule 1.4 (emergent language features): the project is written in C11 on purpose and uses
+// <stdatomic.h> for its lock-free ring and the watchdog manager's alive counters (lib/wdgm),
+// and _Noreturn for the reset functions. Rule 1.4 comes
+// from Amendment 2, which predates MISRA's own guidance for C11 (MISRA C:2023 permits both).
+misra-c2012-1.4
+
+// Advisory rule 8.9 (define an object at block scope if only one function uses it): the
+// statically allocated kernel objects and buffers of a module are declared together at file
+// scope, so the module's memory budget can be read in one place.
+misra-c2012-8.9
+
+// Advisory rule 11.5 (conversion from pointer to void) in the generic ring only: it stores
+// elements of a caller-chosen type and, like memcpy, takes them as void pointers.
+misra-c2012-11.5:*/lib/ring/spsc_ring.c
+
+// Advisory rule 11.5 in the NOR flash model's three flash_dev_t adapters only: the device
+// interface (lib/flash/flash.h) passes each implementation its own context as a void pointer,
+// and the adapters convert it back to the nor_t that nor_device() stored there.
+misra-c2012-11.5:*/lib/flash/nor.c
+
+// Advisory rule 11.5 in lib/image's validator for lib/boot only: lib/boot's validator interface
+// (boot_validator_t) passes the implementation its own context as a void pointer, and the two
+// callbacks convert it back to the bootimg_t that bootimg_init() stored there.
+misra-c2012-11.5:*/lib/bootimg/bootimg.c
+
+// Advisory rule 11.5 in the node's diagnostic connection and its UDS backend only: lib/isotp's
+// callbacks (isotp_callbacks_t) and lib/uds's backend (uds_backend_t) pass the implementation its
+// own context as a void pointer, and the callbacks convert it back to the diag_t or the
+// diag_backend_t that diag_init() and diag_backend_init() stored there.
+misra-c2012-11.5:*/app/diag.c
+misra-c2012-11.5:*/app/diag_backend.c
+
+// Required rule 17.1 and rule 21.6 in the logging front end only: a printf-style log call
+// needs <stdarg.h> and vsnprintf. No other file may use them.
+misra-c2012-17.1:*/lib/log/log.c
+misra-c2012-21.6:*/lib/log/log.c

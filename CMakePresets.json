@@ -1,0 +1,51 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug: -O0 -g, assertions on",
+            "inherits": "base",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+        {
+            "name": "asan",
+            "displayName": "Debug with AddressSanitizer and UndefinedBehaviorSanitizer",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_FLAGS_DEBUG": "-O1 -g",
+                "FCN_SANITIZE": "ON"
+            }
+        },
+        {
+            "name": "tsan",
+            "displayName": "Debug with ThreadSanitizer; scripts/test-tsan.sh builds and runs the threaded unit tests",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_FLAGS_DEBUG": "-O1 -g",
+                "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+            }
+        },
+        {
+            "name": "coverage",
+            "displayName": "Debug with gcov instrumentation of project code",
+            "inherits": "base",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "FCN_COVERAGE": "ON" }
+        },
+        {
+            "name": "release",
+            "displayName": "Optimised build used for system tests and measurements (-O2 -g)",
+            "inherits": "base",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+        }
+    ]
+}

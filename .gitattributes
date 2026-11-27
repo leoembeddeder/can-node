@@ -1,0 +1,10 @@
+# Every text file is stored and checked out with LF line endings, on Windows too:
+# the sources are built from WSL/Linux and shell scripts break on CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.bin binary
+*.ko  binary
+
+*.ps1 text eol=crlf
+*.cmd text eol=crlf

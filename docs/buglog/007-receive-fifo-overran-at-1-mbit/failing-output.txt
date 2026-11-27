@@ -1,0 +1,14 @@
+$ bash docs/buglog/007-receive-fifo-overran-at-1-mbit/test.sh   # with reintroduce.patch applied (release preset), on an idle host
+=================================== FAILURES ===================================
+_ test_the_receive_path_keeps_up_with_a_full_bus_of_the_shortest_frames_at_1_mbit[unregistered] _
+>           assert overruns <= LOSS_LIMIT * delivered, lost
+E           AssertionError: 9149 of 41113 frames delivered in the window lost to receive FIFO overruns (32.0 frames/ms offered, 20.6 received, bus busy 94%, largest wake-up lag of the hardware thread 10.1 ms; ticks dropped from the window's start to the end of the run 0, in the whole run 9; rx_batches_cut in the whole run 2287)
+E           assert 9149 <= (0.01 * 41113)
+tests/system/test_node_errors.py:281: AssertionError
+_ test_the_receive_path_keeps_up_with_a_full_bus_of_the_shortest_frames_at_1_mbit[ping] _
+>           assert overruns <= LOSS_LIMIT * delivered, lost
+E           AssertionError: 7225 of 39230 frames delivered in the window lost to receive FIFO overruns (32.0 frames/ms offered, 19.6 received, bus busy 94%, largest wake-up lag of the hardware thread 10.1 ms; ticks dropped from the window's start to the end of the run 0, in the whole run 9; rx_batches_cut in the whole run 2318)
+E           assert 7225 <= (0.01 * 39230)
+tests/system/test_node_errors.py:281: AssertionError
+2 failed, 19 deselected in 5.32s
+(test.sh exit status 1)

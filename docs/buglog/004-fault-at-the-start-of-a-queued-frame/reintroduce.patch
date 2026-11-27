@@ -1,0 +1,11 @@
+--- a/lib/can/can_ctrl.c
++++ b/lib/can/can_ctrl.c
+@@ -310,7 +310,7 @@
+     while (position < ctrl->wire_count) {
+         const can_ctrl_wire_slot_t *const slot = &ctrl->wire[wire_index(ctrl, position)];
+ 
+-        if (slot->start_ns >= at_ns) {
++        if (slot->start_ns > at_ns) {
+             break;
+         }
+ 

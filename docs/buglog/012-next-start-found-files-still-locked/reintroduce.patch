@@ -1,0 +1,63 @@
+--- a/platform/posix/posix_flash.c
++++ b/platform/posix/posix_flash.c
+@@ -334,8 +334,7 @@
+ static void end_without_kernel(void)
+ {
+     posix_retained_note_reset(PLAT_RESET_POWER_LOSS);
+-    posix_retained_unlock();
+-    posix_flash_unlock();
++    /* the bug: no release here; the lock is left to the kernel */
+     _exit((int)PLAT_RESET_POWER_LOSS);
+ }
+ 
+@@ -800,7 +799,7 @@
+         /* The lock explicitly, and only then the descriptor: the close alone removes the lock
+          * only when nothing else refers to the open file description, and the memory map of a
+          * process forked while the file was mapped does, for as long as that map exists. */
+-        (void)flock(s_fd, LOCK_UN);
++        /* the bug: no release here; the lock is left to the kernel */
+         (void)close(s_fd);
+         s_fd = -1;
+     }
+--- a/platform/posix/posix_retained.c
++++ b/platform/posix/posix_retained.c
+@@ -486,7 +486,7 @@
+         /* The lock explicitly, and only then the descriptor: the close alone removes the lock
+          * only when nothing else refers to the open file description, and the memory map of a
+          * process forked while the cell was mapped does, for as long as that map exists. */
+-        (void)flock(s_fd, LOCK_UN);
++        /* the bug: no release here; the lock is left to the kernel */
+         (void)close(s_fd);
+         s_fd = -1;
+         s_locked = false;
+--- a/platform/posix/posix_lifecycle.c
++++ b/platform/posix/posix_lifecycle.c
+@@ -102,8 +102,7 @@
+  * (posix_flash_unlock()). */
+ static _Noreturn void release_and_exit(int status)
+ {
+-    posix_retained_unlock();
+-    posix_flash_unlock();
++    /* the bug: no release here; the lock is left to the kernel */
+     _exit(status);
+ }
+ 
+--- a/tests/tools/payload.c
++++ b/tests/tools/payload.c
+@@ -78,7 +78,7 @@
+         !boot_host_log_open(option_value(argc, argv, "--log-file"), LOG_LEVEL_INFO, error,
+                             sizeof(error))) {
+         (void)fprintf(stderr, "payload %s: %s\n", kind, error);
+-        posix_retained_close(); /* open if it was the log that failed */
++        /* the bug: no release here; the lock is left to the kernel */
+         return 1;
+     }
+ 
+@@ -108,6 +108,6 @@
+     (void)fprintf(stderr, "FATAL payload %s: a stand-in for broken firmware ends with status %d\n",
+                   kind, (int)reason);
+     posix_retained_note_reset(reason);
+-    posix_retained_unlock();
++    /* the bug: no release here; the lock is left to the kernel */
+     _exit((int)reason);
+ }

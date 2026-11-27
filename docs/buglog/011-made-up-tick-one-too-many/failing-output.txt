@@ -1,0 +1,32 @@
+Release build of a copy of the sources at /home/dev/tc-head with reintroduce.patch applied
+(the give-back of 326f7fe in posix_tick_plan.c, no check at the boundary). Development
+laptop (WSL2), 2026-11-22.
+
+$ bash test.sh
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:872:test_the_first_sleep_is_to_the_boundary_of_the_second_tick:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:873:test_the_tick_just_raised_is_not_a_lag_and_one_more_is:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:874:test_a_lag_beyond_the_limit_is_given_up_but_the_tick_just_raised:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:493:test_at_a_boundary_a_tick_the_kernel_already_holds_is_not_raised:FAIL: Expected 0 Was 1
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:876:test_ticks_taken_on_time_need_nothing_made_up_or_given_back:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:877:test_a_lost_tick_is_made_up_at_once_and_nothing_is_given_back:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:878:test_a_tick_taken_late_within_a_period_is_no_lag:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:567:test_a_tick_made_up_for_one_that_was_only_late_is_given_back_at_the_next_boundary:FAIL: Expected 101 to be less than or equal to 1:the tick 1100 us late
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:567:test_a_tick_too_many_is_given_back_too_when_the_raises_after_it_are_taken_at_once:FAIL: Expected 2 to be less than or equal to 1:the tick 1150 us late
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:881:test_a_late_tick_among_raises_taken_at_once_is_waited_for:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:650:test_two_late_ticks_made_up_are_given_back_one_boundary_each:FAIL: Expected 2 Was 1
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:883:test_a_suspended_scheduler_is_no_lag_for_the_count_of_the_tick_hook:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:884:test_a_tick_thread_stalled_beyond_the_limit_gives_ticks_up_and_moves_the_base:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:885:test_a_tick_thread_stalled_within_the_limit_has_its_ticks_made_up:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:886:test_task_threads_stalled_beyond_the_limit_leave_the_count_on_the_grid:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:887:test_a_lost_tick_among_raises_taken_at_once_is_made_up_at_the_first_taken_after:PASS
+/home/dev/tc-head/tests/platform/test_posix_tick_plan.c:861:test_random_orders_of_events_leave_no_tick_early_but_late_ones_and_end_on_the_grid:FAIL: Expected 189 to be less than or equal to 17:seed 1, 17 late
+
+-----------------------
+17 Tests 5 Failures 0 Ignored 
+FAIL
+exit status: 5
+
+$ bash test-late.sh
+after a late tick the count stayed ahead of the clock: 7 ticks early in a row (at most 1: the late one, given back at the next boundary), in 49 of 50 rounds
+{"test": "tick-late", "build_id": "unknown", "rounds": 50, "tick_pending_in_rounds": 50, "rounds_with_an_early_tick": 49, "rounds_with_early_ticks_in_a_row": 49, "early_ticks": 322, "most_early_ticks_in_a_row": 7, "earliest_us": 992.2, "catch_ups": 9, "give_backs": 7, "dropped_ticks": 0}
+exit status: 1

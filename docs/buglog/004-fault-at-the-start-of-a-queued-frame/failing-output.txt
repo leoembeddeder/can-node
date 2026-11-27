@@ -1,0 +1,4 @@
+$ test_can_ctrl   # with reintroduce.patch applied (release preset)
+tests/unit/test_can_ctrl.c:1185:test_a_received_frame_due_to_start_at_the_instant_of_a_short_never_passes:FAIL: Expected 1006000 Was 1106000:next wake-up
+62 Tests 1 Failures 0 Ignored 
+FAIL

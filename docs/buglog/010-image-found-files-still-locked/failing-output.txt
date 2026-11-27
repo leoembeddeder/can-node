@@ -1,0 +1,56 @@
+CI run 44956788218 (GitHub's ubuntu-24.04 runner, commit 1bd6024), step "System tests"
+(scripts/test-system.sh). The functional run against the release build passed (1038 passed),
+the run against the asan build failed 5 tests, the timing run passed (39 passed). The summary
+of the asan run, as the log has it:
+
+FAILED tests/system/test_boot.py::test_without_a_retained_cell_the_image_gets_no_hand_off - AssertionError: node ended with 1
+fcn_node: --flash-file /home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_without_a_retained_cell_the_image_gets_no_hand_off/flash.bin is in use by another process
+FAILED tests/system/test_update.py::test_a_trial_that_fails_is_started_three_times_and_rolled_back_with_its_dtc[watchdog-11] - AssertionError: rolled-back ended with 1
+fcn_node: --retained-file /home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_a_trial_that_fails_is_started_three_times_and_rolled_back_with_its_dtc_watchdog-11_/cell.bin is in use by another node
+FAILED tests/system/test_update.py::test_a_trial_with_one_bit_flipped_is_rejected_and_never_started[payload] - AssertionError: node ended with 1
+fcn_node: --retained-file /home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_a_trial_with_one_bit_flipped_is_rejected_and_never_started_payload_/cell.bin is in use by another node
+FAILED tests/system/test_update_cuts.py::test_a_cut_anywhere_in_staging_leaves_the_confirmed_image_and_the_next_update_works - AssertionError: cut-2-0 ended with 1
+fcn_node: --retained-file /home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_a_cut_anywhere_in_staging_leaves_the_confirmed_image_and_the_next_update_works/cut-2-0.cell is in use by another node
+FAILED tests/system/test_update_cuts.py::test_a_cut_in_an_attempt_counts_against_the_trial_and_never_gives_it_a_fourth_start - AssertionError: run-0 ended with status 1, not a reset
+--- stderr
+payload crash: --retained-file /home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_a_cut_in_an_attempt_counts_against_the_trial_and_never_gives_it_a_fourth_start/cell.bin is in use by another node
+========== 5 failed, 1033 passed, 39 deselected in 269.11s (0:04:29) ===========
+
+Each message comes from the image (the node, or the crash payload) that fcn_boot had just
+started: fcn_boot itself had opened and locked both files, so the lock it held was still there
+after its exec.
+
+The regression tests added with the fix, release build with reintroduce.patch applied
+(the flock(LOCK_UN) taken out of posix_retained_unlock() and posix_flash_unlock()), in a
+sandbox checkout at /home/dev/p2-fix-lock. Development laptop (WSL2, kernel
+6.6.87.2-microsoft-standard-WSL2), 2026-11-21. Only the failures and the summaries:
+
+$ build/release/tests/platform/test_posix_retained
+/home/dev/p2-fix-lock/tests/platform/test_posix_retained.c:884:test_a_lock_released_while_the_cell_stays_open_lets_another_process_take_it:FAIL: Expected 0 Was 1
+/home/dev/p2-fix-lock/tests/platform/test_posix_retained.c:235:test_the_lock_comes_back_only_while_nobody_else_holds_the_cell:FAIL:another process could not lock the cell's file
+21 Tests 2 Failures 0 Ignored
+exit status: 2
+
+$ build/release/tests/platform/test_posix_flash
+/home/dev/p2-fix-lock/tests/platform/test_posix_flash.c:477:test_a_lock_released_while_the_file_stays_open_lets_another_process_take_it:FAIL: Expected 0 Was 1
+17 Tests 1 Failures 0 Ignored
+exit status: 1
+
+("Expected 0 Was 1": the forked process found the file locked, EWOULDBLOCK, where it should
+have got the lock.)
+
+The system test of test-boot.sh, release build with the same patch applied, in a sandbox
+checkout at /home/dev/p2-verify-lock, same laptop and day. The node, started through
+fcn_boot_held, whose exec keeps fcn_boot's old memory map alive until the image has ended,
+finds the cell still locked by fcn_boot (the traceback cut to its end):
+
+$ python -m pytest tests/system/test_boot.py -q -k test_the_image_locks_both_files_while_the_bootloaders_old_memory_map_lives_on
+>       assert node.wait(timeout=RUN_WAIT_S) == EXIT_OK, node.stderr()
+E       AssertionError: fcn_node: --retained-file /home/dev/p2-verify-lock-build/system-test-logs/test_the_image_locks_both_files_while_the_bootloaders_old_memory_map_lives_on/cell.bin is in use by another node
+E
+E       assert 1 == 0
+E        +  where 1 = wait(timeout=30.0)
+
+tests/system/test_boot.py:194: AssertionError
+1 failed, 7 deselected in 0.13s
+exit status: 1

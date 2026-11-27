@@ -1,0 +1,111 @@
+CI run 45128453578 (GitHub's ubuntu-24.04 runner, commit 7de1f51), step "System tests"
+(scripts/test-system.sh). The functional run against the release build passed (1413 passed),
+the run against the asan build failed 3 tests, the timing run passed (46 passed). The summary
+of the asan run, as the log has it:
+
+FAILED tests/python/test_flash_decoder.py::test_both_readings_agree_after_a_cut_at_every_operation_of_an_update[0] - AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/tmp/pytest-of-runner/pytest-1/test_both_readings_agree_after0/cut-10.bin')): 1
+  fcn_flash: --flash-file /tmp/pytest-of-runner/pytest-1/test_both_readings_agree_after0/cut-10.bin is in use by another process
+  
+assert 1 in (0,)
+ +  where 1 = CompletedProcess(args=['/home/runner/work/freertos-can-node/freertos-can-node/build/asan/bin/fcn_flash', 'info', '--fl...--flash-file /tmp/pytest-of-runner/pytest-1/test_both_readings_agree_after0/cut-10.bin is in use by another process\n').returncode
+FAILED tests/python/test_flash_decoder.py::test_both_readings_agree_after_a_cut_at_every_operation_of_an_update[1] - AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/tmp/pytest-of-runner/pytest-1/test_both_readings_agree_after1/cut-3.bin')): 1
+  fcn_flash: --flash-file /tmp/pytest-of-runner/pytest-1/test_both_readings_agree_after1/cut-3.bin is in use by another process
+  
+assert 1 in (0,)
+ +  where 1 = CompletedProcess(args=['/home/runner/work/freertos-can-node/freertos-can-node/build/asan/bin/fcn_flash', 'info', '--fl... --flash-file /tmp/pytest-of-runner/pytest-1/test_both_readings_agree_after1/cut-3.bin is in use by another process\n').returncode
+FAILED tests/system/test_update_cuts.py::test_a_cut_anywhere_in_staging_leaves_the_confirmed_image_and_the_next_update_works - AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_a_cut_anywhere_in_staging_leaves_the_confirmed_image_and_the_next_update_works/cut-424-733124982.bin')): 1
+fcn_flash: --flash-file /home/runner/work/freertos-can-node/freertos-can-node/build/system-test/logs-functional-asan/test_a_cut_anywhere_in_staging_leaves_the_confirmed_image_and_the_next_update_works/cut-424-733124982.bin is in use by another process
+========== 3 failed, 1410 passed, 46 deselected in 636.44s (0:10:36) ===========
+
+Each message comes from fcn_flash info, which the test had started on the flash file as soon as
+fcn_flash stage --flash-cut had ended on it with status 12 (the simulated power cut): the lock
+that the ended process had held was still there after its exit.
+
+The regression tests added with the fix, release build with reintroduce.patch applied (the
+releases at the ends taken out again: the unlocks before the _exit() of the power cut without a
+kernel, of plat_reset() and the shutdown guard and of the test payloads, the flock(LOCK_UN) of
+posix_flash_close() and posix_retained_close(), and the payload's close before it returns 1),
+in a sandbox checkout at /home/dev/p2-lock-challenge-bug. Development laptop (WSL2, kernel
+6.6.87.2-microsoft-standard-WSL2), 2026-11-23. The entry's five test scripts, run as
+scripts/buglog-verify.sh runs them (BUILD = the release build of that checkout). Only the
+failures and the summaries; the tracebacks of the system tests are cut to their ends:
+
+$ bash docs/buglog/012-next-start-found-files-still-locked/test.sh
+/home/dev/p2-lock-challenge-bug/tests/platform/test_posix_retained.c:890:test_the_close_frees_the_cell_while_another_process_still_maps_it:FAIL: Expected 0 Was 1
+22 Tests 1 Failures 0 Ignored 
+FAIL
+exit status: 1
+
+$ bash docs/buglog/012-next-start-found-files-still-locked/test-flash.sh
+/home/dev/p2-lock-challenge-bug/tests/platform/test_posix_flash.c:564:test_the_close_frees_the_file_while_another_process_still_maps_it:FAIL: Expected 0 Was 1
+/home/dev/p2-lock-challenge-bug/tests/platform/test_posix_flash.c:995:test_a_cut_leaves_both_files_free_while_mappings_of_them_outlive_the_process:FAIL: Expected 0 Was 1:the flash file after cut 1
+20 Tests 2 Failures 0 Ignored 
+FAIL
+exit status: 2
+
+$ bash docs/buglog/012-next-start-found-files-still-locked/test-resets.sh
+{"step": "missing cell, then REQUESTED", "status": 10, "expected": 10, "checks": "ok"}
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-retained-cell.bin is in use by another node
+{"step": "REQUESTED seen, then a bad reason", "status": 3, "expected": 20, "checks": "failed"}
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-retained-cell.bin is in use by another node
+{"step": "ASSERT seen, then STACK_OVERFLOW", "status": 3, "expected": 21, "checks": "failed"}
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-retained-cell.bin is in use by another node
+{"step": "STACK_OVERFLOW seen, then POWER_LOSS", "status": 3, "expected": 12, "checks": "failed"}
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-retained-cell.bin is in use by another node
+{"step": "power-on after POWER_LOSS, orderly end", "status": 3, "expected": 0, "checks": "failed"}
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-retained-cell.bin is in use by another node
+{"step": "power-on after an orderly end", "status": 3, "expected": 22, "checks": "failed"}
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-retained-cell.bin is in use by another node
+{"step": "power-on from a damaged cell", "status": 3, "expected": 13, "checks": "failed"}
+{"step": "power-on from a removed file", "status": 0, "expected": 0, "checks": "ok"}
+exit status: 1
+
+$ bash docs/buglog/012-next-start-found-files-still-locked/test-guard.sh
+FATAL the scheduler did not stop in time
+the child exited with 81, expected 70: a program the task made after the end had released the lock is in the file
+--retained-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-guard.cell is in use by another node
+--flash-file /home/dev/p2-lock-challenge-bug-build/release/buglog-012-guard-flash.bin is in use by another process
+{"test": "end-while-writing", "end": "guard", "status": 81, "ok": false}
+exit status: 1
+
+$ bash docs/buglog/012-next-start-found-files-still-locked/test-ends.sh
+=================================== FAILURES ===================================
+____ test_the_flash_is_free_at_once_after_a_power_cut_in_the_flash_tool[3] _____
+E       AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_flash_is_free_at_once_after_a_power_cut_in_the_flash_tool_3_/flash.bin')): 1
+E       fcn_flash: --flash-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_flash_is_free_at_once_after_a_power_cut_in_the_flash_tool_3_/flash.bin is in use by another process
+____ test_the_flash_is_free_at_once_after_a_power_cut_in_the_flash_tool[10] ____
+E       AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_flash_is_free_at_once_after_a_power_cut_in_the_flash_tool_10_/flash.bin')): 1
+E       fcn_flash: --flash-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_flash_is_free_at_once_after_a_power_cut_in_the_flash_tool_10_/flash.bin is in use by another process
+___ test_the_board_starts_again_at_once_after_a_reset_of_the_node[watchdog] ____
+E       AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_a_reset_of_the_node_watchdog_/flash.bin')): 1
+E       fcn_flash: --flash-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_a_reset_of_the_node_watchdog_/flash.bin is in use by another process
+___ test_the_board_starts_again_at_once_after_a_reset_of_the_node[requested] ___
+E       AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_a_reset_of_the_node_requested_/flash.bin')): 1
+E       fcn_flash: --flash-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_a_reset_of_the_node_requested_/flash.bin is in use by another process
+___ test_the_board_starts_again_at_once_after_a_reset_of_the_node[power cut] ___
+E       AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_a_reset_of_the_node_power_cut_/flash.bin')): 1
+E       fcn_flash: --flash-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_a_reset_of_the_node_power_cut_/flash.bin is in use by another process
+______ test_the_board_starts_again_at_once_after_the_crash_payload_ended _______
+E       AssertionError: node-again ended with status 1, not a reset
+E       --- stderr
+E       fcn_boot: --retained-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_again_at_once_after_the_crash_payload_ended/cell.bin is in use by another node
+__ test_the_cell_is_free_at_once_after_the_payload_ended_at_a_start_up_error ___
+E       AssertionError: again ended with status 1, not a reset
+E       --- stderr
+E       fcn_boot: --retained-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_cell_is_free_at_once_after_the_payload_ended_at_a_start_up_error/cell.bin is in use by another node
+______ test_the_board_starts_at_once_after_a_power_cut_in_the_bootloader _______
+E       AssertionError: fcn_flash ('info', '--flash-file', PosixPath('/home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_at_once_after_a_power_cut_in_the_bootloader/flash.bin')): 1
+E       fcn_flash: --flash-file /home/dev/p2-lock-challenge-bug-build/system-test-logs/test_the_board_starts_at_once_after_a_power_cut_in_the_bootloader/flash.bin is in use by another process
+8 failed, 3 deselected in 1.49s
+exit status: 1
+
+("Expected 0 Was 1": the process that tried the lock found the file locked, EWOULDBLOCK, where
+it should have got the lock. In test-resets.sh the first child resets and leaves the cell
+locked: its keeper keeps the mapping, and with it the lock, until the test ends, so every later
+child ends with 3 at its open of the cell; the last step removes the file first. In
+test-guard.sh the shutdown guard ends the child, whose status is 81 in place of the guard's 70:
+with no release the flash file's mapping is still the shared one while the end is held open, so
+the programs the task makes meanwhile are in the file; and the parent finds the cell and the
+flash "in use". In test-ends.sh the next program, fcn_flash info or fcn_boot, finds the flash
+file or the cell "in use" while the process that holds the ended program's memory map is still
+there.)

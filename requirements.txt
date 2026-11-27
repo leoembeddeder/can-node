@@ -1,0 +1,11 @@
+# Pinned Python dependencies of the tools, the system tests and the measurement scripts.
+# Install with scripts/setup-python.sh (Python 3.12).
+python-can==4.6.1
+cantools==45.1.2
+can-isotp==2.0.7
+udsoncan==1.26.1
+pytest==9.2.0
+pytest-timeout==2.4.0
+numpy==2.5.4
+matplotlib==3.11.2
+gcovr==8.8

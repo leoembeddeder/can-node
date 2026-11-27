@@ -1,0 +1,8 @@
+$ bash docs/buglog/008-lost-transport-went-unnoticed/test.sh   # with reintroduce.patch applied (release preset)
+=================================== FAILURES ===================================
+        # Before: frames went out and nothing failed.
+        assert before["transport_tx_failed"] == 0 and before["transport_rx_failed"] == 0
+>       assert result["status"] == EXIT_CAN_TRANSPORT_LOST
+E       AssertionError: assert 'still running 10 s after its interface was deleted' == 74
+tests/system/test_node_errors.py:404: AssertionError
+1 failed, 20 deselected in 10.13s

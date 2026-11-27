@@ -1,0 +1,25 @@
+Bug 009: saved output of the regression test, release build, development laptop, 2026-11-16.
+
+1. The platform self-test (plat_selftest stack) with reintroduce.patch applied (the depth is
+   counted from the frame of plat_task_enter() again):
+
+    $ plat_selftest stack
+    a buffer in the task function's own frame is not measured: body task 512 bytes, shallow task 1992, buffer 16384
+    start of the task functions wrong: deep 4432, shallow 4432, body 4432 bytes (shallow peak 1992, body peak 512)
+    {"test": "stack", "build_id": "f0d3c0f62811cc63046d3dfc0669cf6c4d47e499-dirty-d4497d7021a6", "burned_bytes": 24576, "body_buffer_bytes": 16384, "tasks": [{"name": "deep", "peak_bytes": 25328, "start_bytes": 4432, "size_bytes": 524288, "configured_bytes": 2048}, {"name": "shallow", "peak_bytes": 1992, "start_bytes": 4432, "size_bytes": 524288, "configured_bytes": 2048}, {"name": "body", "peak_bytes": 512, "start_bytes": 4432, "size_bytes": 524288, "configured_bytes": 6144}, {"name": "IDLE", "peak_bytes": 1944, "start_bytes": 4448, "size_bytes": 524288, "configured_bytes": 2048}], "kernel_high_water_mark_is_meaningful": false}
+    exit status: 1
+
+   The body task keeps a 16 KiB buffer in its task function and is reported at 512 bytes, the
+   scan's floor: less than the shallow task, which uses nothing of its own (a signal frame
+   landed on it in this run).
+
+2. The same self-test with the fix:
+
+    $ plat_selftest stack
+    {"test": "stack", "build_id": "f0d3c0f62811cc63046d3dfc0669cf6c4d47e499", "burned_bytes": 24576, "body_buffer_bytes": 16384, "tasks": [{"name": "deep", "peak_bytes": 29792, "start_bytes": 4432, "size_bytes": 524288, "configured_bytes": 2048}, {"name": "shallow", "peak_bytes": 4976, "start_bytes": 4432, "size_bytes": 524288, "configured_bytes": 2048}, {"name": "body", "peak_bytes": 21376, "start_bytes": 4432, "size_bytes": 524288, "configured_bytes": 6144}, {"name": "IDLE", "peak_bytes": 6456, "start_bytes": 4448, "size_bytes": 524288, "configured_bytes": 2048}], "kernel_high_water_mark_is_meaningful": false}
+    exit status: 0
+
+3. What the bug hid in the node (fcn_node --duration-s 2 --irq-mode poll, release), with a
+   64 KiB buffer added to the body of health_task: counted from plat_task_enter(), health
+   reported stack_peak_bytes 2264, the same figure as the unmodified node; with the fix it
+   reports 72344 (stack_start_bytes 4432, stack_size_bytes 4096).

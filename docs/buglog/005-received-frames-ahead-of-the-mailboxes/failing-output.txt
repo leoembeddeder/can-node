@@ -1,0 +1,45 @@
+Bug 005: saved output of the tests with reintroduce.patch applied (release preset), 2026-11-16.
+
+1. test.sh, the controller model's unit test (lines that passed left out):
+
+    tests/unit/test_can_ctrl.c:605:test_a_frame_of_this_node_goes_before_a_waiting_received_frame_with_a_larger_key:FAIL: Expected 1 Was 2:action kind
+    tests/unit/test_can_ctrl.c:675:test_a_received_frame_with_a_small_key_waits_behind_an_older_received_frame:FAIL: Expected 1 Was 2:action kind
+    tests/unit/test_can_ctrl.c:704:test_the_best_mailbox_competes_and_the_frames_of_both_nodes_interleave_by_key:FAIL: Expected 1 Was 2:action kind
+    tests/unit/test_can_ctrl.c:732:test_a_frame_handed_in_at_the_instant_the_bus_becomes_free_arbitrates:FAIL: Expected 1 Was 2:action kind
+    tests/unit/test_can_ctrl.c:750:test_a_late_poll_moves_a_start_won_against_a_received_frame_and_that_frame_waits:FAIL: Expected 1 Was 0
+    tests/unit/test_can_ctrl.c:822:test_a_flood_with_larger_keys_delays_this_node_by_one_frame_at_most:FAIL: Expected TRUE Was FALSE
+    -----------------------
+    73 Tests 6 Failures 0 Ignored
+    FAIL
+    exit status: 6
+
+2. test-flood.sh, the system test on both transports (tracebacks shortened to their last
+   lines):
+
+    tests/system/test_can_flood.py:123:
+    E           AssertionError: status counter 1 followed by 133
+    tools/fcn_tools/bus.py:115: AssertionError
+    tests/system/test_can_flood.py:123:
+    E           AssertionError: status counter 1 followed by 138
+    tools/fcn_tools/bus.py:115: AssertionError
+    =========================== short test summary info ============================
+    FAILED tests/system/test_can_flood.py::test_a_flood_above_the_bus_capacity_leaves_the_status_frame_its_turn[udp]
+    FAILED tests/system/test_can_flood.py::test_a_flood_above_the_bus_capacity_leaves_the_status_frame_its_turn[socketcan]
+    2 failed, 2 deselected in 4.30s
+    exit status: 1
+
+   After the status value of the first period, the next one the tester heard was that of
+   period 133 (UDP) or 138 (SocketCAN): nothing in between got onto the bus while the flood
+   lasted. The node's statistics from another run of the same test with the patch
+   (test_a_flood_above_the_bus_capacity_leaves_the_status_frame_its_turn[socketcan]; a flood
+   of 1,991 frames 0x700 at 1.2 times the capacity of a 125 kbit/s bus):
+
+    controller {'tx_frames': 28, 'tx_attempts_failed': 0, 'tx_aborted': 132, 'rx_frames': 1720, 'rx_errors': 0, 'rx_lost_fault': 0, 'wire_overruns': 271, 'bus_off_events': 0, 'late_resyncs': 0, 'busy_ns': 1540392000}
+    queue {'produced': 160, 'sent': 28, 'superseded': 132, 'dropped': 0, 'expired': 0, 'pending': 0, 'bus_off_count': 0, 'restart_requests': 0, 'recall_requests': 132, 'holdoff_ms': 100}
+
+   Without the patch, in the same session
+   (test_under_a_flood_above_the_bus_capacity_the_status_frame_keeps_its_period[socketcan]):
+
+    controller {'tx_frames': 180, 'tx_attempts_failed': 0, 'tx_aborted': 0, 'rx_frames': 1557, 'rx_errors': 0, 'rx_lost_fault': 0, 'wire_overruns': 434, 'bus_off_events': 0, 'late_resyncs': 2, 'busy_ns': 1542952000}
+    transport {'tx_frames': 180, 'tx_failed': 0, 'rx_frames': 1991, 'rx_malformed': 0, 'rx_overflow': 0}
+    queue {'produced': 180, 'sent': 180, 'superseded': 0, 'dropped': 0, 'expired': 0, 'pending': 0, 'bus_off_count': 0, 'restart_requests': 0, 'recall_requests': 0, 'holdoff_ms': 100}

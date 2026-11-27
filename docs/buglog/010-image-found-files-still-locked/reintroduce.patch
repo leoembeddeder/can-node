@@ -1,0 +1,22 @@
+--- a/platform/posix/posix_retained.c
++++ b/platform/posix/posix_retained.c
+@@ -437,7 +437,7 @@
+     if ((s_cell != NULL) && s_locked) {
+         /* LOCK_UN removes the lock of the open file description at once, also while the
+          * mapping (or any copy of the descriptor) still refers to the description. */
+-        (void)flock(s_fd, LOCK_UN);
++        /* the bug: no LOCK_UN; the lock goes only with the last reference to the description */
+         s_locked = false;
+     }
+ }
+--- a/platform/posix/posix_flash.c
++++ b/platform/posix/posix_flash.c
+@@ -820,7 +820,7 @@
+             MAP_FAILED) {
+             /* LOCK_UN removes the lock of the open file description at once, also while the
+              * mapping still refers to the description. */
+-            (void)flock(s_fd, LOCK_UN);
++            /* the bug: no LOCK_UN; the lock goes only with the last reference to the description */
+         }
+     }
+ }

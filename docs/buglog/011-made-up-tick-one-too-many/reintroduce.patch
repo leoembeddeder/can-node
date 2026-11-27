@@ -1,0 +1,38 @@
+--- a/platform/posix/posix_tick_plan.c
++++ b/platform/posix/posix_tick_plan.c
+@@ -52,14 +52,14 @@
+         expected -= dropped;
+     }
+ 
+-    /* Sleep to the boundary of the next tick. Whether the port raises it there is decided at
+-     * the boundary, once the tick just raised has had its period (at_deadline below): read
+-     * now, a count one ahead whose last raise is not taken yet looks on time. */
+-    plan->next = expected + 1U;
++    /* Sleep to the boundary of the next tick. If a made-up tick turned out to be one too
++     * many, `counted` is ahead and the sleep is one period longer, which gives it back. */
++    plan->next = ((counted > expected) ? counted : expected) + 1U;
+ 
+     posix_tick_step_t step = sleep_to_next(plan);
+ 
+     step.dropped = dropped;
++    step.given_back = (counted > expected);
+     return step;
+ }
+ 
+@@ -68,14 +68,7 @@
+     posix_tick_step_t step = {
+         .action = POSIX_TICK_RAISE, .deadline_ns = 0U, .dropped = 0U, .given_back = false};
+ 
+-    /* Settled: the raise before had a whole period to be taken. A kernel that already holds
+-     * the tick about to be raised took one too many; raising it would put the count one ahead
+-     * of the clock. */
+-    if (counted >= plan->next) {
+-        plan->next++;
+-        step = sleep_to_next(plan);
+-        step.given_back = true;
+-    }
+-
++    (void)plan;
++    (void)counted;
+     return step;
+ }

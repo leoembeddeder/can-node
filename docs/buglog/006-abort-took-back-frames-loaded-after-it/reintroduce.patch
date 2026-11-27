@@ -1,0 +1,35 @@
+--- a/platform/posix/posix_can.c
++++ b/platform/posix/posix_can.c
+@@ -228,14 +228,6 @@
+     return (now_ns > model_ns) ? (now_ns - model_ns) : 0U;
+ }
+ 
+-/* True if serial `a` was taken before serial `b`. The difference is read as a signed number
+- * so that the comparison holds across the wrap of the counter: requests that are in flight
+- * at the same time are never more than a few serials apart. */
+-static bool serial_before(uint32_t a, uint32_t b)
+-{
+-    return ((a - b) & 0x80000000U) != 0U;
+-}
+-
+ /* ENODEV: the interface was unregistered under the socket, which the kernel then unbinds;
+  * ENXIO: a send on such an unbound socket. Not ENETDOWN: a bound socket survives its
+  * interface going down and up. */
+@@ -454,7 +446,6 @@
+         /* Read after the command: plat_can_abort_tx() stores the mark before it sets the
+          * command, so this is the mark of the abort being served or of a later one. A later
+          * one has set the command again, and nothing is loaded until it is served (below). */
+-        const uint32_t mark = atomic_load(&s_abort_mark);
+         uint32_t handles[CAN_CTRL_TX_MAILBOXES];
+         const uint32_t removed = can_ctrl_tx_abort_all(&s_ctrl, handles, CAN_CTRL_TX_MAILBOXES);
+         const tx_request_t *request;
+@@ -469,8 +460,7 @@
+          * through a bus-off and go out stale after recovery. A request made after the abort
+          * stays: the ring is in submission order, so the first such request ends the drain,
+          * and the loading loop takes it and the ones behind it. */
+-        for (request = peek_request(); (request != NULL) && serial_before(request->serial, mark);
+-             request = peek_request()) {
++        for (request = peek_request(); request != NULL; request = peek_request()) {
+             report_aborted(request->handle, now_ns);
+             take_request();
+         }

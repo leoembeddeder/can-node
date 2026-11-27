@@ -1,0 +1,145 @@
+{
+  "schema": "fcn.result/platform_timing/1",
+  "provenance": {
+    "generated_utc": "2026-11-24T01:51:32+00:00",
+    "command": "python bench/platform_timing.py",
+    "git_commit": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+    "git_modified_files": [],
+    "host": {
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "is_wsl": true,
+      "machine": "x86_64",
+      "cpu": "Intel(R) Core(TM) Ultra 7 258V",
+      "logical_cpus": 8,
+      "python": "3.12.3",
+      "load_average_at_start": 0.98,
+      "load_average_at_end": 0.73
+    }
+  },
+  "host_timing_note": "Measured on the FreeRTOS POSIX port, where every task is a thread of a Linux process. Times, jitter and latencies are those of the host's scheduler and are not what the same code shows on a microcontroller; counts, orderings and sizes of protocol data are independent of the host.",
+  "loaded": false,
+  "load_limit": 1.0,
+  "seconds_per_run": 10,
+  "tick": {
+    "stock": {
+      "nominal_tick_period_us": 1000.0,
+      "effective_tick_period_us": 1025.057,
+      "error_percent": 2.506,
+      "drift_over_run_us": 250071.7,
+      "tick_signals_sent": 10000,
+      "catch_up_ticks": 0,
+      "given_back_ticks": 0,
+      "dropped_ticks": 0,
+      "dropped_ticks_in_measured_span": 0,
+      "host_stalls_seen": 0,
+      "host_stall_us": 0,
+      "dropped_not_explained_by_host_stalls": 0,
+      "unaccounted_time_percent": 2.444,
+      "wake_interval_of_10ms_task_us": {
+        "n": 998,
+        "mean": 10250.573,
+        "min": 9946.993,
+        "p50": 10224.699,
+        "p90": 10425.859,
+        "p99": 10614.632,
+        "p99_9": null,
+        "max": 10818.537
+      }
+    },
+    "locked": {
+      "nominal_tick_period_us": 1000.0,
+      "effective_tick_period_us": 999.997,
+      "error_percent": -0.0,
+      "drift_over_run_us": -30.4,
+      "tick_signals_sent": 10002,
+      "catch_up_ticks": 3,
+      "given_back_ticks": 0,
+      "dropped_ticks": 0,
+      "dropped_ticks_in_measured_span": 0,
+      "host_stalls_seen": 0,
+      "host_stall_us": 0,
+      "dropped_not_explained_by_host_stalls": 0,
+      "unaccounted_time_percent": -0.0,
+      "wake_interval_of_10ms_task_us": {
+        "n": 998,
+        "mean": 9999.97,
+        "min": 8895.146,
+        "p50": 9999.13,
+        "p90": 10051.185,
+        "p99": 10184.02,
+        "p99_9": null,
+        "max": 11179.92
+      }
+    }
+  },
+  "interrupt": {
+    "signal": {
+      "nominal_raise_period_us": 250,
+      "mean_raise_period_us": 249.838,
+      "raised": 40021,
+      "task_wakeups": 39920,
+      "unserved_at_end": 0,
+      "serviced_by_signal_handler": 38824,
+      "serviced_by_tick_hook": 1166,
+      "max_handler_nesting": 1,
+      "raises_without_latency_sample": 0,
+      "raise_to_task_latency_per_interrupt_us": {
+        "n": 40021,
+        "mean": 37.074,
+        "min": 3.756,
+        "p50": 31.421,
+        "p90": 57.567,
+        "p99": 135.957,
+        "p99_9": 281.949,
+        "max": 772.822
+      }
+    },
+    "poll": {
+      "nominal_raise_period_us": 250,
+      "mean_raise_period_us": 249.839,
+      "raised": 40021,
+      "task_wakeups": 9986,
+      "unserved_at_end": 0,
+      "serviced_by_signal_handler": 0,
+      "serviced_by_tick_hook": 9986,
+      "max_handler_nesting": 0,
+      "raises_without_latency_sample": 0,
+      "raise_to_task_latency_per_interrupt_us": {
+        "n": 40021,
+        "mean": 532.247,
+        "min": 15.994,
+        "p50": 533.699,
+        "p90": 930.804,
+        "p99": 1045.001,
+        "p99_9": 1538.748,
+        "max": 2059.74
+      }
+    }
+  },
+  "interrupt_storm": {
+    "signal": {
+      "seconds": 5,
+      "raised": 75976581,
+      "raises_per_second": 15195316,
+      "task_wakeups": 1475166,
+      "unserved_at_end": 0,
+      "max_handler_nesting": 1,
+      "stack_peak_max_bytes": 6584
+    },
+    "poll": {
+      "seconds": 5,
+      "raised": 144078216,
+      "raises_per_second": 28815643,
+      "task_wakeups": 5000,
+      "unserved_at_end": 0,
+      "max_handler_nesting": 0,
+      "stack_peak_max_bytes": 6520
+    }
+  },
+  "binary": {
+    "path": "/home/dev/fcn-build/release/tests/platform/plat_selftest",
+    "sha256": "311cbb4d5267aae6f76f118fa48b452347d83a3ccb8b74f6a4d8e56e667b3b37",
+    "build_id": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+    "origin": "scripts/build.sh release"
+  }
+}

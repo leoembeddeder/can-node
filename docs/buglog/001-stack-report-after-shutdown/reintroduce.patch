@@ -1,0 +1,10 @@
+--- a/platform/posix/posix_lifecycle.c
++++ b/platform/posix/posix_lifecycle.c
+@@ -63,7 +63,6 @@
+ void plat_end_scheduler(void)
+ {
+     posix_irq_set_enabled(false);
+-    posix_stack_freeze(); /* while every task's thread, the idle task's included, still exists */
+     posix_wdg_stop();     /* the board is switched off; the shutdown guard takes over */
+     posix_shutdown_guard_arm(POSIX_SHUTDOWN_TIMEOUT_MS);
+     vTaskEndScheduler();

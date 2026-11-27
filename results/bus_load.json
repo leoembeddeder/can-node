@@ -1,0 +1,1706 @@
+{
+  "schema": "fcn.result/bus_load/1",
+  "provenance": {
+    "generated_utc": "2026-11-23T23:52:40+00:00",
+    "command": "python bench/bus_load.py",
+    "git_commit": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+    "git_modified_files": [],
+    "host": {
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "is_wsl": true,
+      "machine": "x86_64",
+      "cpu": "Intel(R) Core(TM) Ultra 7 258V",
+      "logical_cpus": 8,
+      "python": "3.12.3",
+      "load_average_at_start": 0.56,
+      "load_average_at_end": 0.13
+    }
+  },
+  "host_timing_note": "Measured on the FreeRTOS POSIX port, where every task is a thread of a Linux process. Times, jitter and latencies are those of the host's scheduler and are not what the same code shows on a microcontroller; counts, orderings and sizes of protocol data are independent of the host. The frames, their lengths and the nominal load are protocol data and do not depend on the host; the frames per second do, through when the node's tasks ran, and the node's frames are paced by its controller model at 500 kbit/s while the tester's frames reach the observer when the tester sends them, not when a real bus would carry them.",
+  "loaded": false,
+  "load_limit": 1.0,
+  "build": {
+    "tree": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+    "binaries": {
+      "fcn_node": {
+        "path": "/home/dev/fcn-build/release/bin/fcn_node",
+        "build_id": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+        "sha256": "a291ec625d8cdde059686df783d44a28e95234d2fb4c2f3ca2fb2dc81ec0bffc"
+      },
+      "fcn_boot": {
+        "path": "/home/dev/fcn-build/release/bin/fcn_boot",
+        "build_id": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+        "sha256": "bf5cc8d014594b1877a74e9ca989db3eeb3ca652d09bb354052b5e60716f6a1c"
+      },
+      "fcn_flash": {
+        "path": "/home/dev/fcn-build/release/bin/fcn_flash",
+        "build_id": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+        "sha256": "762e5650856a85d51f30899088cff0d7080d4a3e6a7ad11d2e55463bfce20fc3"
+      }
+    },
+    "reported": {
+      "socketcan idle": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+      "socketcan download-1": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+      "udp idle": "28d8f7a92d151765a92d775a37a5f636d79b6e1a",
+      "udp download-1": "28d8f7a92d151765a92d775a37a5f636d79b6e1a"
+    }
+  },
+  "config": {
+    "bitrate": 500000,
+    "transports": [
+      "socketcan",
+      "udp"
+    ],
+    "seconds": 60,
+    "downloads": 1,
+    "download_image": "node-1.1.0",
+    "settle_s": 1.0,
+    "after_download_s": 0.5,
+    "intermission_bits": 3,
+    "sensor_seed": 1,
+    "quick": false,
+    "binaries": "scripts/build.sh release"
+  },
+  "summary": {
+    "socketcan": {
+      "idle_load": {
+        "value": 0.077466,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_load_without_intermission": {
+        "value": 0.075504,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_nominal_load_typical": {
+        "value": 0.075688,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_nominal_load_worst_case": {
+        "value": 0.08829,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_model_busy_share": {
+        "value": 0.075511,
+        "unit": "fraction of the run"
+      },
+      "download_load": {
+        "value": 0.47722,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "download_tester_load": {
+        "value": 0.372302,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "download_node_diag_load": {
+        "value": 0.02737,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "download_node_load": {
+        "value": 0.104917,
+        "unit": "fraction of 500 kbit/s"
+      }
+    },
+    "udp": {
+      "idle_load": {
+        "value": 0.077469,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_load_without_intermission": {
+        "value": 0.075507,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_nominal_load_typical": {
+        "value": 0.075688,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_nominal_load_worst_case": {
+        "value": 0.08829,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "idle_model_busy_share": {
+        "value": 0.075511,
+        "unit": "fraction of the run"
+      },
+      "download_load": {
+        "value": 0.47652,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "download_tester_load": {
+        "value": 0.371639,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "download_node_diag_load": {
+        "value": 0.027321,
+        "unit": "fraction of 500 kbit/s"
+      },
+      "download_node_load": {
+        "value": 0.104879,
+        "unit": "fraction of 500 kbit/s"
+      }
+    }
+  },
+  "nominal": {
+    "messages": {
+      "BMS_Fault": {
+        "id": 16,
+        "cycle_ms": 100.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.785,
+        "load_worst_case": 0.0027,
+        "load_typical": 0.002316
+      },
+      "BMS_PackStatus": {
+        "id": 32,
+        "cycle_ms": 10.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.745,
+        "load_worst_case": 0.027,
+        "load_typical": 0.023149
+      },
+      "BMS_Heartbeat": {
+        "id": 48,
+        "cycle_ms": 10.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.735,
+        "load_worst_case": 0.027,
+        "load_typical": 0.023147
+      },
+      "BMS_CellVoltages1": {
+        "id": 64,
+        "cycle_ms": 20.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.759,
+        "load_worst_case": 0.0135,
+        "load_typical": 0.011576
+      },
+      "BMS_CellVoltages2": {
+        "id": 65,
+        "cycle_ms": 20.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.712,
+        "load_worst_case": 0.0135,
+        "load_typical": 0.011571
+      },
+      "BMS_Temperatures": {
+        "id": 80,
+        "cycle_ms": 100.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.751,
+        "load_worst_case": 0.0027,
+        "load_typical": 0.002315
+      },
+      "BMS_TaskStats": {
+        "id": 1536,
+        "cycle_ms": 200.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 112.766,
+        "load_worst_case": 0.00135,
+        "load_typical": 0.001158
+      },
+      "BMS_NodeInfo": {
+        "id": 1552,
+        "cycle_ms": 1000.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 111.757,
+        "load_worst_case": 0.00027,
+        "load_typical": 0.00023
+      },
+      "BMS_BootInfo": {
+        "id": 1553,
+        "cycle_ms": 1000.0,
+        "dlc": 8,
+        "worst_case_bits": 132,
+        "typical_bits": 110.733,
+        "load_worst_case": 0.00027,
+        "load_typical": 0.000227
+      }
+    },
+    "load_worst_case": 0.08829,
+    "load_typical": 0.075688,
+    "typical_draws": 2000,
+    "typical_seed": 20261123
+  },
+  "transports": {
+    "socketcan": {
+      "idle": {
+        "name": "idle",
+        "window_s": 58.989606,
+        "frames_in_window": 19288,
+        "observer_frames": 19620,
+        "wall_clock_steps": 2,
+        "times_not_trusted": 3,
+        "by_id": {
+          "0x010": {
+            "id": 16,
+            "frames": 589,
+            "frames_per_s": 9.985,
+            "bits_min": 119,
+            "bits_mean": 120.997,
+            "bits_max": 122,
+            "bits_per_s": 1238.083,
+            "load": 0.002476,
+            "load_without_intermission": 0.002416
+          },
+          "0x020": {
+            "id": 32,
+            "frames": 5899,
+            "frames_per_s": 100.001,
+            "bits_min": 111,
+            "bits_mean": 115.082,
+            "bits_max": 120,
+            "bits_per_s": 11808.301,
+            "load": 0.023617,
+            "load_without_intermission": 0.023017
+          },
+          "0x030": {
+            "id": 48,
+            "frames": 5899,
+            "frames_per_s": 100.001,
+            "bits_min": 116,
+            "bits_mean": 118.03,
+            "bits_max": 123,
+            "bits_per_s": 12103.115,
+            "load": 0.024206,
+            "load_without_intermission": 0.023606
+          },
+          "0x040": {
+            "id": 64,
+            "frames": 2949,
+            "frames_per_s": 49.992,
+            "bits_min": 110,
+            "bits_mean": 112.145,
+            "bits_max": 117,
+            "bits_per_s": 5756.319,
+            "load": 0.011513,
+            "load_without_intermission": 0.011213
+          },
+          "0x041": {
+            "id": 65,
+            "frames": 2950,
+            "frames_per_s": 50.009,
+            "bits_min": 110,
+            "bits_mean": 112.327,
+            "bits_max": 118,
+            "bits_per_s": 5767.372,
+            "load": 0.011535,
+            "load_without_intermission": 0.011235
+          },
+          "0x050": {
+            "id": 80,
+            "frames": 590,
+            "frames_per_s": 10.002,
+            "bits_min": 116,
+            "bits_mean": 117.741,
+            "bits_max": 120,
+            "bits_per_s": 1207.62,
+            "load": 0.002415,
+            "load_without_intermission": 0.002355
+          },
+          "0x600": {
+            "id": 1536,
+            "frames": 295,
+            "frames_per_s": 5.001,
+            "bits_min": 116,
+            "bits_mean": 118.705,
+            "bits_max": 121,
+            "bits_per_s": 608.633,
+            "load": 0.001217,
+            "load_without_intermission": 0.001187
+          },
+          "0x610": {
+            "id": 1552,
+            "frames": 58,
+            "frames_per_s": 0.983,
+            "bits_min": 118,
+            "bits_mean": 119.397,
+            "bits_max": 123,
+            "bits_per_s": 120.343,
+            "load": 0.000241,
+            "load_without_intermission": 0.000235
+          },
+          "0x611": {
+            "id": 1553,
+            "frames": 59,
+            "frames_per_s": 1.0,
+            "bits_min": 120,
+            "bits_mean": 120.0,
+            "bits_max": 120,
+            "bits_per_s": 123.022,
+            "load": 0.000246,
+            "load_without_intermission": 0.00024
+          }
+        },
+        "load": 0.077466,
+        "load_without_intermission": 0.075504,
+        "groups": {
+          "node": {
+            "frames_per_s": 326.973,
+            "bits_per_s": 38732.807,
+            "load": 0.077466
+          },
+          "tester": {
+            "frames_per_s": 0,
+            "bits_per_s": 0,
+            "load": 0
+          },
+          "other": {
+            "frames_per_s": 0,
+            "bits_per_s": 0,
+            "load": 0
+          }
+        },
+        "nominal": {
+          "BMS_Fault": {
+            "id": 16,
+            "cycle_ms": 100.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 10.0,
+            "measured_frames_per_s": 9.985,
+            "frames_ratio": 0.998481,
+            "worst_case_bits": 132,
+            "typical_bits": 112.785,
+            "measured_mean_bits": 120.997,
+            "nominal_load_worst_case": 0.0027,
+            "nominal_load_typical": 0.002316,
+            "measured_load": 0.002476,
+            "load_ratio_to_typical": 1.06929
+          },
+          "BMS_PackStatus": {
+            "id": 32,
+            "cycle_ms": 10.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 100.0,
+            "measured_frames_per_s": 100.001,
+            "frames_ratio": 1.000007,
+            "worst_case_bits": 132,
+            "typical_bits": 112.745,
+            "measured_mean_bits": 115.082,
+            "nominal_load_worst_case": 0.027,
+            "nominal_load_typical": 0.023149,
+            "measured_load": 0.023617,
+            "load_ratio_to_typical": 1.020204
+          },
+          "BMS_Heartbeat": {
+            "id": 48,
+            "cycle_ms": 10.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 100.0,
+            "measured_frames_per_s": 100.001,
+            "frames_ratio": 1.000007,
+            "worst_case_bits": 132,
+            "typical_bits": 112.735,
+            "measured_mean_bits": 118.03,
+            "nominal_load_worst_case": 0.027,
+            "nominal_load_typical": 0.023147,
+            "measured_load": 0.024206,
+            "load_ratio_to_typical": 1.045761
+          },
+          "BMS_CellVoltages1": {
+            "id": 64,
+            "cycle_ms": 20.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 50.0,
+            "measured_frames_per_s": 49.992,
+            "frames_ratio": 0.999837,
+            "worst_case_bits": 132,
+            "typical_bits": 112.759,
+            "measured_mean_bits": 112.145,
+            "nominal_load_worst_case": 0.0135,
+            "nominal_load_typical": 0.011576,
+            "measured_load": 0.011513,
+            "load_ratio_to_typical": 0.994535
+          },
+          "BMS_CellVoltages2": {
+            "id": 65,
+            "cycle_ms": 20.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 50.0,
+            "measured_frames_per_s": 50.009,
+            "frames_ratio": 1.000176,
+            "worst_case_bits": 132,
+            "typical_bits": 112.712,
+            "measured_mean_bits": 112.327,
+            "nominal_load_worst_case": 0.0135,
+            "nominal_load_typical": 0.011571,
+            "measured_load": 0.011535,
+            "load_ratio_to_typical": 0.996854
+          },
+          "BMS_Temperatures": {
+            "id": 80,
+            "cycle_ms": 100.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 10.0,
+            "measured_frames_per_s": 10.002,
+            "frames_ratio": 1.000176,
+            "worst_case_bits": 132,
+            "typical_bits": 112.751,
+            "measured_mean_bits": 117.741,
+            "nominal_load_worst_case": 0.0027,
+            "nominal_load_typical": 0.002315,
+            "measured_load": 0.002415,
+            "load_ratio_to_typical": 1.043295
+          },
+          "BMS_TaskStats": {
+            "id": 1536,
+            "cycle_ms": 200.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 5.0,
+            "measured_frames_per_s": 5.001,
+            "frames_ratio": 1.000176,
+            "worst_case_bits": 132,
+            "typical_bits": 112.766,
+            "measured_mean_bits": 118.705,
+            "nominal_load_worst_case": 0.00135,
+            "nominal_load_typical": 0.001158,
+            "measured_load": 0.001217,
+            "load_ratio_to_typical": 1.051483
+          },
+          "BMS_NodeInfo": {
+            "id": 1552,
+            "cycle_ms": 1000.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 1.0,
+            "measured_frames_per_s": 0.983,
+            "frames_ratio": 0.983224,
+            "worst_case_bits": 132,
+            "typical_bits": 111.757,
+            "measured_mean_bits": 119.397,
+            "nominal_load_worst_case": 0.00027,
+            "nominal_load_typical": 0.00023,
+            "measured_load": 0.000241,
+            "load_ratio_to_typical": 1.048683
+          },
+          "BMS_BootInfo": {
+            "id": 1553,
+            "cycle_ms": 1000.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 1.0,
+            "measured_frames_per_s": 1.0,
+            "frames_ratio": 1.000176,
+            "worst_case_bits": 132,
+            "typical_bits": 110.733,
+            "measured_mean_bits": 120.0,
+            "nominal_load_worst_case": 0.00027,
+            "nominal_load_typical": 0.000227,
+            "measured_load": 0.000246,
+            "load_ratio_to_typical": 1.081676
+          }
+        },
+        "node_counters": {
+          "elapsed_s": 60.003543,
+          "busy_s": 4.530944,
+          "model_busy_share": 0.075511,
+          "tx_frames": 19620,
+          "rx_frames": 0,
+          "wire_overruns": 0,
+          "tick_dropped": 0,
+          "transport_rx_frames": 0,
+          "captured_node_frames": 19620,
+          "captured_other_frames": 0,
+          "captured_share_without_intermission": 0.075527
+        },
+        "run": {}
+      },
+      "download": {
+        "runs": [
+          {
+            "name": "download-1",
+            "window_s": 23.275604,
+            "frames_in_window": 46606,
+            "observer_frames": 46876,
+            "wall_clock_steps": 1,
+            "times_not_trusted": 1,
+            "by_id": {
+              "0x010": {
+                "id": 16,
+                "frames": 233,
+                "frames_per_s": 10.01,
+                "bits_min": 119,
+                "bits_mean": 121.0,
+                "bits_max": 122,
+                "bits_per_s": 1241.3,
+                "load": 0.002483,
+                "load_without_intermission": 0.002423
+              },
+              "0x020": {
+                "id": 32,
+                "frames": 2327,
+                "frames_per_s": 99.976,
+                "bits_min": 111,
+                "bits_mean": 115.079,
+                "bits_max": 120,
+                "bits_per_s": 11805.064,
+                "load": 0.02361,
+                "load_without_intermission": 0.02301
+              },
+              "0x030": {
+                "id": 48,
+                "frames": 2327,
+                "frames_per_s": 99.976,
+                "bits_min": 116,
+                "bits_mean": 118.417,
+                "bits_max": 123,
+                "bits_per_s": 12138.761,
+                "load": 0.024278,
+                "load_without_intermission": 0.023678
+              },
+              "0x040": {
+                "id": 64,
+                "frames": 1164,
+                "frames_per_s": 50.009,
+                "bits_min": 110,
+                "bits_mean": 112.131,
+                "bits_max": 117,
+                "bits_per_s": 5757.617,
+                "load": 0.011515,
+                "load_without_intermission": 0.011215
+              },
+              "0x041": {
+                "id": 65,
+                "frames": 1164,
+                "frames_per_s": 50.009,
+                "bits_min": 110,
+                "bits_mean": 112.263,
+                "bits_max": 117,
+                "bits_per_s": 5764.233,
+                "load": 0.011528,
+                "load_without_intermission": 0.011228
+              },
+              "0x050": {
+                "id": 80,
+                "frames": 233,
+                "frames_per_s": 10.01,
+                "bits_min": 116,
+                "bits_mean": 117.768,
+                "bits_max": 120,
+                "bits_per_s": 1208.948,
+                "load": 0.002418,
+                "load_without_intermission": 0.002358
+              },
+              "0x600": {
+                "id": 1536,
+                "frames": 116,
+                "frames_per_s": 4.984,
+                "bits_min": 116,
+                "bits_mean": 118.621,
+                "bits_max": 121,
+                "bits_per_s": 606.128,
+                "load": 0.001212,
+                "load_without_intermission": 0.001182
+              },
+              "0x610": {
+                "id": 1552,
+                "frames": 23,
+                "frames_per_s": 0.988,
+                "bits_min": 120,
+                "bits_mean": 121.043,
+                "bits_max": 124,
+                "bits_per_s": 122.575,
+                "load": 0.000245,
+                "load_without_intermission": 0.000239
+              },
+              "0x611": {
+                "id": 1553,
+                "frames": 24,
+                "frames_per_s": 1.031,
+                "bits_min": 122,
+                "bits_mean": 122.0,
+                "bits_max": 122,
+                "bits_per_s": 128.89,
+                "load": 0.000258,
+                "load_without_intermission": 0.000252
+              },
+              "0x7e0": {
+                "id": 2016,
+                "frames": 36268,
+                "frames_per_s": 1558.198,
+                "bits_min": 111,
+                "bits_mean": 116.466,
+                "bits_max": 125,
+                "bits_per_s": 186151.133,
+                "load": 0.372302,
+                "load_without_intermission": 0.362953
+              },
+              "0x7e8": {
+                "id": 2024,
+                "frames": 2727,
+                "frames_per_s": 117.161,
+                "bits_min": 111,
+                "bits_mean": 113.804,
+                "bits_max": 119,
+                "bits_per_s": 13684.93,
+                "load": 0.02737,
+                "load_without_intermission": 0.026667
+              }
+            },
+            "load": 0.477219,
+            "load_without_intermission": 0.465205,
+            "groups": {
+              "node": {
+                "frames_per_s": 444.156,
+                "bits_per_s": 52458.446,
+                "load": 0.104917
+              },
+              "tester": {
+                "frames_per_s": 1558.198,
+                "bits_per_s": 186151.133,
+                "load": 0.372302
+              },
+              "other": {
+                "frames_per_s": 0,
+                "bits_per_s": 0,
+                "load": 0
+              }
+            },
+            "nominal": {
+              "BMS_Fault": {
+                "id": 16,
+                "cycle_ms": 100.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 10.0,
+                "measured_frames_per_s": 10.01,
+                "frames_ratio": 1.001048,
+                "worst_case_bits": 132,
+                "typical_bits": 112.785,
+                "measured_mean_bits": 121.0,
+                "nominal_load_worst_case": 0.0027,
+                "nominal_load_typical": 0.002316,
+                "measured_load": 0.002483,
+                "load_ratio_to_typical": 1.072068
+              },
+              "BMS_PackStatus": {
+                "id": 32,
+                "cycle_ms": 10.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 100.0,
+                "measured_frames_per_s": 99.976,
+                "frames_ratio": 0.999759,
+                "worst_case_bits": 132,
+                "typical_bits": 112.745,
+                "measured_mean_bits": 115.079,
+                "nominal_load_worst_case": 0.027,
+                "nominal_load_typical": 0.023149,
+                "measured_load": 0.02361,
+                "load_ratio_to_typical": 1.019924
+              },
+              "BMS_Heartbeat": {
+                "id": 48,
+                "cycle_ms": 10.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 100.0,
+                "measured_frames_per_s": 99.976,
+                "frames_ratio": 0.999759,
+                "worst_case_bits": 132,
+                "typical_bits": 112.735,
+                "measured_mean_bits": 118.417,
+                "nominal_load_worst_case": 0.027,
+                "nominal_load_typical": 0.023147,
+                "measured_load": 0.024278,
+                "load_ratio_to_typical": 1.048841
+              },
+              "BMS_CellVoltages1": {
+                "id": 64,
+                "cycle_ms": 20.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 50.0,
+                "measured_frames_per_s": 50.009,
+                "frames_ratio": 1.000189,
+                "worst_case_bits": 132,
+                "typical_bits": 112.759,
+                "measured_mean_bits": 112.131,
+                "nominal_load_worst_case": 0.0135,
+                "nominal_load_typical": 0.011576,
+                "measured_load": 0.011515,
+                "load_ratio_to_typical": 0.994759
+              },
+              "BMS_CellVoltages2": {
+                "id": 65,
+                "cycle_ms": 20.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 50.0,
+                "measured_frames_per_s": 50.009,
+                "frames_ratio": 1.000189,
+                "worst_case_bits": 132,
+                "typical_bits": 112.712,
+                "measured_mean_bits": 112.263,
+                "nominal_load_worst_case": 0.0135,
+                "nominal_load_typical": 0.011571,
+                "measured_load": 0.011528,
+                "load_ratio_to_typical": 0.996311
+              },
+              "BMS_Temperatures": {
+                "id": 80,
+                "cycle_ms": 100.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 10.0,
+                "measured_frames_per_s": 10.01,
+                "frames_ratio": 1.001048,
+                "worst_case_bits": 132,
+                "typical_bits": 112.751,
+                "measured_mean_bits": 117.768,
+                "nominal_load_worst_case": 0.0027,
+                "nominal_load_typical": 0.002315,
+                "measured_load": 0.002418,
+                "load_ratio_to_typical": 1.044443
+              },
+              "BMS_TaskStats": {
+                "id": 1536,
+                "cycle_ms": 200.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 5.0,
+                "measured_frames_per_s": 4.984,
+                "frames_ratio": 0.996752,
+                "worst_case_bits": 132,
+                "typical_bits": 112.766,
+                "measured_mean_bits": 118.621,
+                "nominal_load_worst_case": 0.00135,
+                "nominal_load_typical": 0.001158,
+                "measured_load": 0.001212,
+                "load_ratio_to_typical": 1.047156
+              },
+              "BMS_NodeInfo": {
+                "id": 1552,
+                "cycle_ms": 1000.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 1.0,
+                "measured_frames_per_s": 0.988,
+                "frames_ratio": 0.988159,
+                "worst_case_bits": 132,
+                "typical_bits": 111.757,
+                "measured_mean_bits": 121.043,
+                "nominal_load_worst_case": 0.00027,
+                "nominal_load_typical": 0.00023,
+                "measured_load": 0.000245,
+                "load_ratio_to_typical": 1.068129
+              },
+              "BMS_BootInfo": {
+                "id": 1553,
+                "cycle_ms": 1000.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 1.0,
+                "measured_frames_per_s": 1.031,
+                "frames_ratio": 1.031123,
+                "worst_case_bits": 132,
+                "typical_bits": 110.733,
+                "measured_mean_bits": 122.0,
+                "nominal_load_worst_case": 0.00027,
+                "nominal_load_typical": 0.000227,
+                "measured_load": 0.000258,
+                "load_ratio_to_typical": 1.133276
+              }
+            },
+            "node_counters": {
+              "elapsed_s": 24.1056,
+              "busy_s": 10.890316,
+              "model_busy_share": 0.451775,
+              "tx_frames": 10608,
+              "rx_frames": 36268,
+              "wire_overruns": 0,
+              "tick_dropped": 0,
+              "transport_rx_frames": 36268,
+              "captured_node_frames": 10608,
+              "captured_other_frames": 36268,
+              "captured_share_without_intermission": 0.45201
+            },
+            "run": {
+              "image": "node-1.1.0",
+              "image_bytes": 252560,
+              "result": "committed",
+              "erase_s": 2.8457,
+              "transfer_s": 20.418436,
+              "blocks": 247
+            }
+          }
+        ],
+        "window_s": 23.275604,
+        "by_id": {
+          "0x010": {
+            "id": 16,
+            "frames": 233,
+            "frames_per_s": 10.01,
+            "bits_min": 119,
+            "bits_mean": 121.0,
+            "bits_max": 122,
+            "bits_per_s": 1241.3,
+            "load": 0.002483,
+            "load_without_intermission": 0.002423
+          },
+          "0x020": {
+            "id": 32,
+            "frames": 2327,
+            "frames_per_s": 99.976,
+            "bits_min": 111,
+            "bits_mean": 115.079,
+            "bits_max": 120,
+            "bits_per_s": 11805.057,
+            "load": 0.02361,
+            "load_without_intermission": 0.02301
+          },
+          "0x030": {
+            "id": 48,
+            "frames": 2327,
+            "frames_per_s": 99.976,
+            "bits_min": 116,
+            "bits_mean": 118.417,
+            "bits_max": 123,
+            "bits_per_s": 12138.777,
+            "load": 0.024278,
+            "load_without_intermission": 0.023678
+          },
+          "0x040": {
+            "id": 64,
+            "frames": 1164,
+            "frames_per_s": 50.009,
+            "bits_min": 110,
+            "bits_mean": 112.131,
+            "bits_max": 117,
+            "bits_per_s": 5757.637,
+            "load": 0.011515,
+            "load_without_intermission": 0.011215
+          },
+          "0x041": {
+            "id": 65,
+            "frames": 1164,
+            "frames_per_s": 50.009,
+            "bits_min": 110,
+            "bits_mean": 112.263,
+            "bits_max": 117,
+            "bits_per_s": 5764.238,
+            "load": 0.011528,
+            "load_without_intermission": 0.011228
+          },
+          "0x050": {
+            "id": 80,
+            "frames": 233,
+            "frames_per_s": 10.01,
+            "bits_min": 116,
+            "bits_mean": 117.768,
+            "bits_max": 120,
+            "bits_per_s": 1208.946,
+            "load": 0.002418,
+            "load_without_intermission": 0.002358
+          },
+          "0x600": {
+            "id": 1536,
+            "frames": 116,
+            "frames_per_s": 4.984,
+            "bits_min": 116,
+            "bits_mean": 118.621,
+            "bits_max": 121,
+            "bits_per_s": 606.13,
+            "load": 0.001212,
+            "load_without_intermission": 0.001182
+          },
+          "0x610": {
+            "id": 1552,
+            "frames": 23,
+            "frames_per_s": 0.988,
+            "bits_min": 120,
+            "bits_mean": 121.043,
+            "bits_max": 124,
+            "bits_per_s": 122.574,
+            "load": 0.000245,
+            "load_without_intermission": 0.000239
+          },
+          "0x611": {
+            "id": 1553,
+            "frames": 24,
+            "frames_per_s": 1.031,
+            "bits_min": 122,
+            "bits_mean": 122.0,
+            "bits_max": 122,
+            "bits_per_s": 128.89,
+            "load": 0.000258,
+            "load_without_intermission": 0.000252
+          },
+          "0x7e0": {
+            "id": 2016,
+            "frames": 36268,
+            "frames_per_s": 1558.198,
+            "bits_min": 111,
+            "bits_mean": 116.466,
+            "bits_max": 125,
+            "bits_per_s": 186151.684,
+            "load": 0.372303,
+            "load_without_intermission": 0.362954
+          },
+          "0x7e8": {
+            "id": 2024,
+            "frames": 2727,
+            "frames_per_s": 117.161,
+            "bits_min": 111,
+            "bits_mean": 113.804,
+            "bits_max": 119,
+            "bits_per_s": 13684.908,
+            "load": 0.02737,
+            "load_without_intermission": 0.026667
+          }
+        },
+        "load": 0.47722,
+        "load_without_intermission": 0.465206,
+        "groups": {
+          "node": {
+            "frames_per_s": 444.156,
+            "bits_per_s": 52458.446,
+            "load": 0.104917
+          },
+          "tester": {
+            "frames_per_s": 1558.198,
+            "bits_per_s": 186151.133,
+            "load": 0.372302
+          },
+          "other": {
+            "frames_per_s": 0.0,
+            "bits_per_s": 0.0,
+            "load": 0.0
+          }
+        }
+      }
+    },
+    "udp": {
+      "idle": {
+        "name": "idle",
+        "window_s": 58.990033,
+        "frames_in_window": 19289,
+        "observer_frames": 19620,
+        "wall_clock_steps": 2,
+        "times_not_trusted": 2,
+        "by_id": {
+          "0x010": {
+            "id": 16,
+            "frames": 589,
+            "frames_per_s": 9.985,
+            "bits_min": 119,
+            "bits_mean": 120.997,
+            "bits_max": 122,
+            "bits_per_s": 1238.074,
+            "load": 0.002476,
+            "load_without_intermission": 0.002416
+          },
+          "0x020": {
+            "id": 32,
+            "frames": 5899,
+            "frames_per_s": 100.0,
+            "bits_min": 111,
+            "bits_mean": 115.082,
+            "bits_max": 120,
+            "bits_per_s": 11808.215,
+            "load": 0.023616,
+            "load_without_intermission": 0.023016
+          },
+          "0x030": {
+            "id": 48,
+            "frames": 5899,
+            "frames_per_s": 100.0,
+            "bits_min": 116,
+            "bits_mean": 118.03,
+            "bits_max": 123,
+            "bits_per_s": 12103.028,
+            "load": 0.024206,
+            "load_without_intermission": 0.023606
+          },
+          "0x040": {
+            "id": 64,
+            "frames": 2950,
+            "frames_per_s": 50.008,
+            "bits_min": 110,
+            "bits_mean": 112.145,
+            "bits_max": 117,
+            "bits_per_s": 5758.227,
+            "load": 0.011516,
+            "load_without_intermission": 0.011216
+          },
+          "0x041": {
+            "id": 65,
+            "frames": 2950,
+            "frames_per_s": 50.008,
+            "bits_min": 110,
+            "bits_mean": 112.327,
+            "bits_max": 118,
+            "bits_per_s": 5767.33,
+            "load": 0.011535,
+            "load_without_intermission": 0.011235
+          },
+          "0x050": {
+            "id": 80,
+            "frames": 590,
+            "frames_per_s": 10.002,
+            "bits_min": 116,
+            "bits_mean": 117.741,
+            "bits_max": 120,
+            "bits_per_s": 1207.611,
+            "load": 0.002415,
+            "load_without_intermission": 0.002355
+          },
+          "0x600": {
+            "id": 1536,
+            "frames": 295,
+            "frames_per_s": 5.001,
+            "bits_min": 116,
+            "bits_mean": 118.746,
+            "bits_max": 121,
+            "bits_per_s": 608.832,
+            "load": 0.001218,
+            "load_without_intermission": 0.001188
+          },
+          "0x610": {
+            "id": 1552,
+            "frames": 58,
+            "frames_per_s": 0.983,
+            "bits_min": 118,
+            "bits_mean": 119.397,
+            "bits_max": 123,
+            "bits_per_s": 120.342,
+            "load": 0.000241,
+            "load_without_intermission": 0.000235
+          },
+          "0x611": {
+            "id": 1553,
+            "frames": 59,
+            "frames_per_s": 1.0,
+            "bits_min": 120,
+            "bits_mean": 120.0,
+            "bits_max": 120,
+            "bits_per_s": 123.021,
+            "load": 0.000246,
+            "load_without_intermission": 0.00024
+          }
+        },
+        "load": 0.077469,
+        "load_without_intermission": 0.075507,
+        "groups": {
+          "node": {
+            "frames_per_s": 326.987,
+            "bits_per_s": 38734.679,
+            "load": 0.077469
+          },
+          "tester": {
+            "frames_per_s": 0,
+            "bits_per_s": 0,
+            "load": 0
+          },
+          "other": {
+            "frames_per_s": 0,
+            "bits_per_s": 0,
+            "load": 0
+          }
+        },
+        "nominal": {
+          "BMS_Fault": {
+            "id": 16,
+            "cycle_ms": 100.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 10.0,
+            "measured_frames_per_s": 9.985,
+            "frames_ratio": 0.998474,
+            "worst_case_bits": 132,
+            "typical_bits": 112.785,
+            "measured_mean_bits": 120.997,
+            "nominal_load_worst_case": 0.0027,
+            "nominal_load_typical": 0.002316,
+            "measured_load": 0.002476,
+            "load_ratio_to_typical": 1.069282
+          },
+          "BMS_PackStatus": {
+            "id": 32,
+            "cycle_ms": 10.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 100.0,
+            "measured_frames_per_s": 100.0,
+            "frames_ratio": 0.999999,
+            "worst_case_bits": 132,
+            "typical_bits": 112.745,
+            "measured_mean_bits": 115.082,
+            "nominal_load_worst_case": 0.027,
+            "nominal_load_typical": 0.023149,
+            "measured_load": 0.023616,
+            "load_ratio_to_typical": 1.020197
+          },
+          "BMS_Heartbeat": {
+            "id": 48,
+            "cycle_ms": 10.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 100.0,
+            "measured_frames_per_s": 100.0,
+            "frames_ratio": 0.999999,
+            "worst_case_bits": 132,
+            "typical_bits": 112.735,
+            "measured_mean_bits": 118.03,
+            "nominal_load_worst_case": 0.027,
+            "nominal_load_typical": 0.023147,
+            "measured_load": 0.024206,
+            "load_ratio_to_typical": 1.045753
+          },
+          "BMS_CellVoltages1": {
+            "id": 64,
+            "cycle_ms": 20.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 50.0,
+            "measured_frames_per_s": 50.008,
+            "frames_ratio": 1.000169,
+            "worst_case_bits": 132,
+            "typical_bits": 112.759,
+            "measured_mean_bits": 112.145,
+            "nominal_load_worst_case": 0.0135,
+            "nominal_load_typical": 0.011576,
+            "measured_load": 0.011516,
+            "load_ratio_to_typical": 0.994865
+          },
+          "BMS_CellVoltages2": {
+            "id": 65,
+            "cycle_ms": 20.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 50.0,
+            "measured_frames_per_s": 50.008,
+            "frames_ratio": 1.000169,
+            "worst_case_bits": 132,
+            "typical_bits": 112.712,
+            "measured_mean_bits": 112.327,
+            "nominal_load_worst_case": 0.0135,
+            "nominal_load_typical": 0.011571,
+            "measured_load": 0.011535,
+            "load_ratio_to_typical": 0.996847
+          },
+          "BMS_Temperatures": {
+            "id": 80,
+            "cycle_ms": 100.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 10.0,
+            "measured_frames_per_s": 10.002,
+            "frames_ratio": 1.000169,
+            "worst_case_bits": 132,
+            "typical_bits": 112.751,
+            "measured_mean_bits": 117.741,
+            "nominal_load_worst_case": 0.0027,
+            "nominal_load_typical": 0.002315,
+            "measured_load": 0.002415,
+            "load_ratio_to_typical": 1.043288
+          },
+          "BMS_TaskStats": {
+            "id": 1536,
+            "cycle_ms": 200.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 5.0,
+            "measured_frames_per_s": 5.001,
+            "frames_ratio": 1.000169,
+            "worst_case_bits": 132,
+            "typical_bits": 112.766,
+            "measured_mean_bits": 118.746,
+            "nominal_load_worst_case": 0.00135,
+            "nominal_load_typical": 0.001158,
+            "measured_load": 0.001218,
+            "load_ratio_to_typical": 1.051827
+          },
+          "BMS_NodeInfo": {
+            "id": 1552,
+            "cycle_ms": 1000.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 1.0,
+            "measured_frames_per_s": 0.983,
+            "frames_ratio": 0.983217,
+            "worst_case_bits": 132,
+            "typical_bits": 111.757,
+            "measured_mean_bits": 119.397,
+            "nominal_load_worst_case": 0.00027,
+            "nominal_load_typical": 0.00023,
+            "measured_load": 0.000241,
+            "load_ratio_to_typical": 1.048676
+          },
+          "BMS_BootInfo": {
+            "id": 1553,
+            "cycle_ms": 1000.0,
+            "dlc": 8,
+            "nominal_frames_per_s": 1.0,
+            "measured_frames_per_s": 1.0,
+            "frames_ratio": 1.000169,
+            "worst_case_bits": 132,
+            "typical_bits": 110.733,
+            "measured_mean_bits": 120.0,
+            "nominal_load_worst_case": 0.00027,
+            "nominal_load_typical": 0.000227,
+            "measured_load": 0.000246,
+            "load_ratio_to_typical": 1.081668
+          }
+        },
+        "node_counters": {
+          "elapsed_s": 60.003854,
+          "busy_s": 4.53097,
+          "model_busy_share": 0.075511,
+          "tx_frames": 19620,
+          "rx_frames": 0,
+          "wire_overruns": 0,
+          "tick_dropped": 0,
+          "transport_rx_frames": 0,
+          "captured_node_frames": 19620,
+          "captured_other_frames": 0,
+          "captured_share_without_intermission": 0.075527
+        },
+        "run": {}
+      },
+      "download": {
+        "runs": [
+          {
+            "name": "download-1",
+            "window_s": 23.31713,
+            "frames_in_window": 46621,
+            "observer_frames": 46876,
+            "wall_clock_steps": 0,
+            "times_not_trusted": 1,
+            "by_id": {
+              "0x010": {
+                "id": 16,
+                "frames": 233,
+                "frames_per_s": 9.993,
+                "bits_min": 119,
+                "bits_mean": 120.996,
+                "bits_max": 122,
+                "bits_per_s": 1239.046,
+                "load": 0.002478,
+                "load_without_intermission": 0.002418
+              },
+              "0x020": {
+                "id": 32,
+                "frames": 2332,
+                "frames_per_s": 100.012,
+                "bits_min": 111,
+                "bits_mean": 115.077,
+                "bits_max": 120,
+                "bits_per_s": 11809.172,
+                "load": 0.023618,
+                "load_without_intermission": 0.023018
+              },
+              "0x030": {
+                "id": 48,
+                "frames": 2332,
+                "frames_per_s": 100.012,
+                "bits_min": 116,
+                "bits_mean": 118.416,
+                "bits_max": 123,
+                "bits_per_s": 12143.047,
+                "load": 0.024286,
+                "load_without_intermission": 0.023686
+              },
+              "0x040": {
+                "id": 64,
+                "frames": 1166,
+                "frames_per_s": 50.006,
+                "bits_min": 110,
+                "bits_mean": 112.132,
+                "bits_max": 117,
+                "bits_per_s": 5757.312,
+                "load": 0.011515,
+                "load_without_intermission": 0.011215
+              },
+              "0x041": {
+                "id": 65,
+                "frames": 1166,
+                "frames_per_s": 50.006,
+                "bits_min": 110,
+                "bits_mean": 112.262,
+                "bits_max": 117,
+                "bits_per_s": 5763.788,
+                "load": 0.011528,
+                "load_without_intermission": 0.011228
+              },
+              "0x050": {
+                "id": 80,
+                "frames": 234,
+                "frames_per_s": 10.036,
+                "bits_min": 116,
+                "bits_mean": 117.769,
+                "bits_max": 120,
+                "bits_per_s": 1211.984,
+                "load": 0.002424,
+                "load_without_intermission": 0.002364
+              },
+              "0x600": {
+                "id": 1536,
+                "frames": 117,
+                "frames_per_s": 5.018,
+                "bits_min": 116,
+                "bits_mean": 118.376,
+                "bits_max": 121,
+                "bits_per_s": 609.037,
+                "load": 0.001218,
+                "load_without_intermission": 0.001188
+              },
+              "0x610": {
+                "id": 1552,
+                "frames": 23,
+                "frames_per_s": 0.986,
+                "bits_min": 120,
+                "bits_mean": 121.043,
+                "bits_max": 124,
+                "bits_per_s": 122.356,
+                "load": 0.000245,
+                "load_without_intermission": 0.000239
+              },
+              "0x611": {
+                "id": 1553,
+                "frames": 23,
+                "frames_per_s": 0.986,
+                "bits_min": 122,
+                "bits_mean": 122.0,
+                "bits_max": 122,
+                "bits_per_s": 123.3,
+                "load": 0.000247,
+                "load_without_intermission": 0.000241
+              },
+              "0x7e0": {
+                "id": 2016,
+                "frames": 36268,
+                "frames_per_s": 1555.423,
+                "bits_min": 111,
+                "bits_mean": 116.466,
+                "bits_max": 125,
+                "bits_per_s": 185819.61,
+                "load": 0.371639,
+                "load_without_intermission": 0.362307
+              },
+              "0x7e8": {
+                "id": 2024,
+                "frames": 2727,
+                "frames_per_s": 116.953,
+                "bits_min": 111,
+                "bits_mean": 113.804,
+                "bits_max": 119,
+                "bits_per_s": 13660.558,
+                "load": 0.027321,
+                "load_without_intermission": 0.026619
+              }
+            },
+            "load": 0.476518,
+            "load_without_intermission": 0.464522,
+            "groups": {
+              "node": {
+                "frames_per_s": 444.008,
+                "bits_per_s": 52439.601,
+                "load": 0.104879
+              },
+              "tester": {
+                "frames_per_s": 1555.423,
+                "bits_per_s": 185819.61,
+                "load": 0.371639
+              },
+              "other": {
+                "frames_per_s": 0,
+                "bits_per_s": 0,
+                "load": 0
+              }
+            },
+            "nominal": {
+              "BMS_Fault": {
+                "id": 16,
+                "cycle_ms": 100.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 10.0,
+                "measured_frames_per_s": 9.993,
+                "frames_ratio": 0.999265,
+                "worst_case_bits": 132,
+                "typical_bits": 112.785,
+                "measured_mean_bits": 120.996,
+                "nominal_load_worst_case": 0.0027,
+                "nominal_load_typical": 0.002316,
+                "measured_load": 0.002478,
+                "load_ratio_to_typical": 1.070122
+              },
+              "BMS_PackStatus": {
+                "id": 32,
+                "cycle_ms": 10.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 100.0,
+                "measured_frames_per_s": 100.012,
+                "frames_ratio": 1.000123,
+                "worst_case_bits": 132,
+                "typical_bits": 112.745,
+                "measured_mean_bits": 115.077,
+                "nominal_load_worst_case": 0.027,
+                "nominal_load_typical": 0.023149,
+                "measured_load": 0.023618,
+                "load_ratio_to_typical": 1.020279
+              },
+              "BMS_Heartbeat": {
+                "id": 48,
+                "cycle_ms": 10.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 100.0,
+                "measured_frames_per_s": 100.012,
+                "frames_ratio": 1.000123,
+                "worst_case_bits": 132,
+                "typical_bits": 112.735,
+                "measured_mean_bits": 118.416,
+                "nominal_load_worst_case": 0.027,
+                "nominal_load_typical": 0.023147,
+                "measured_load": 0.024286,
+                "load_ratio_to_typical": 1.049211
+              },
+              "BMS_CellVoltages1": {
+                "id": 64,
+                "cycle_ms": 20.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 50.0,
+                "measured_frames_per_s": 50.006,
+                "frames_ratio": 1.000123,
+                "worst_case_bits": 132,
+                "typical_bits": 112.759,
+                "measured_mean_bits": 112.132,
+                "nominal_load_worst_case": 0.0135,
+                "nominal_load_typical": 0.011576,
+                "measured_load": 0.011515,
+                "load_ratio_to_typical": 0.994707
+              },
+              "BMS_CellVoltages2": {
+                "id": 65,
+                "cycle_ms": 20.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 50.0,
+                "measured_frames_per_s": 50.006,
+                "frames_ratio": 1.000123,
+                "worst_case_bits": 132,
+                "typical_bits": 112.712,
+                "measured_mean_bits": 112.262,
+                "nominal_load_worst_case": 0.0135,
+                "nominal_load_typical": 0.011571,
+                "measured_load": 0.011528,
+                "load_ratio_to_typical": 0.996234
+              },
+              "BMS_Temperatures": {
+                "id": 80,
+                "cycle_ms": 100.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 10.0,
+                "measured_frames_per_s": 10.036,
+                "frames_ratio": 1.003554,
+                "worst_case_bits": 132,
+                "typical_bits": 112.751,
+                "measured_mean_bits": 117.769,
+                "nominal_load_worst_case": 0.0027,
+                "nominal_load_typical": 0.002315,
+                "measured_load": 0.002424,
+                "load_ratio_to_typical": 1.047066
+              },
+              "BMS_TaskStats": {
+                "id": 1536,
+                "cycle_ms": 200.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 5.0,
+                "measured_frames_per_s": 5.018,
+                "frames_ratio": 1.003554,
+                "worst_case_bits": 132,
+                "typical_bits": 112.766,
+                "measured_mean_bits": 118.376,
+                "nominal_load_worst_case": 0.00135,
+                "nominal_load_typical": 0.001158,
+                "measured_load": 0.001218,
+                "load_ratio_to_typical": 1.052182
+              },
+              "BMS_NodeInfo": {
+                "id": 1552,
+                "cycle_ms": 1000.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 1.0,
+                "measured_frames_per_s": 0.986,
+                "frames_ratio": 0.986399,
+                "worst_case_bits": 132,
+                "typical_bits": 111.757,
+                "measured_mean_bits": 121.043,
+                "nominal_load_worst_case": 0.00027,
+                "nominal_load_typical": 0.00023,
+                "measured_load": 0.000245,
+                "load_ratio_to_typical": 1.066226
+              },
+              "BMS_BootInfo": {
+                "id": 1553,
+                "cycle_ms": 1000.0,
+                "dlc": 8,
+                "nominal_frames_per_s": 1.0,
+                "measured_frames_per_s": 0.986,
+                "frames_ratio": 0.986399,
+                "worst_case_bits": 132,
+                "typical_bits": 110.733,
+                "measured_mean_bits": 122.0,
+                "nominal_load_worst_case": 0.00027,
+                "nominal_load_typical": 0.000227,
+                "measured_load": 0.000247,
+                "load_ratio_to_typical": 1.084122
+              }
+            },
+            "node_counters": {
+              "elapsed_s": 24.104634,
+              "busy_s": 10.890246,
+              "model_busy_share": 0.451791,
+              "tx_frames": 10608,
+              "rx_frames": 36268,
+              "wire_overruns": 0,
+              "tick_dropped": 0,
+              "transport_rx_frames": 36268,
+              "captured_node_frames": 10608,
+              "captured_other_frames": 36268,
+              "captured_share_without_intermission": 0.452033
+            },
+            "run": {
+              "image": "node-1.1.0",
+              "image_bytes": 252560,
+              "result": "committed",
+              "erase_s": 2.843346,
+              "transfer_s": 20.462061,
+              "blocks": 247
+            }
+          }
+        ],
+        "window_s": 23.31713,
+        "by_id": {
+          "0x010": {
+            "id": 16,
+            "frames": 233,
+            "frames_per_s": 9.993,
+            "bits_min": 119,
+            "bits_mean": 120.996,
+            "bits_max": 122,
+            "bits_per_s": 1239.049,
+            "load": 0.002478,
+            "load_without_intermission": 0.002418
+          },
+          "0x020": {
+            "id": 32,
+            "frames": 2332,
+            "frames_per_s": 100.012,
+            "bits_min": 111,
+            "bits_mean": 115.077,
+            "bits_max": 120,
+            "bits_per_s": 11809.153,
+            "load": 0.023618,
+            "load_without_intermission": 0.023018
+          },
+          "0x030": {
+            "id": 48,
+            "frames": 2332,
+            "frames_per_s": 100.012,
+            "bits_min": 116,
+            "bits_mean": 118.416,
+            "bits_max": 123,
+            "bits_per_s": 12143.094,
+            "load": 0.024286,
+            "load_without_intermission": 0.023686
+          },
+          "0x040": {
+            "id": 64,
+            "frames": 1166,
+            "frames_per_s": 50.006,
+            "bits_min": 110,
+            "bits_mean": 112.132,
+            "bits_max": 117,
+            "bits_per_s": 5757.309,
+            "load": 0.011515,
+            "load_without_intermission": 0.011215
+          },
+          "0x041": {
+            "id": 65,
+            "frames": 1166,
+            "frames_per_s": 50.006,
+            "bits_min": 110,
+            "bits_mean": 112.262,
+            "bits_max": 117,
+            "bits_per_s": 5763.809,
+            "load": 0.011528,
+            "load_without_intermission": 0.011228
+          },
+          "0x050": {
+            "id": 80,
+            "frames": 234,
+            "frames_per_s": 10.036,
+            "bits_min": 116,
+            "bits_mean": 117.769,
+            "bits_max": 120,
+            "bits_per_s": 1211.982,
+            "load": 0.002424,
+            "load_without_intermission": 0.002364
+          },
+          "0x600": {
+            "id": 1536,
+            "frames": 117,
+            "frames_per_s": 5.018,
+            "bits_min": 116,
+            "bits_mean": 118.376,
+            "bits_max": 121,
+            "bits_per_s": 609.037,
+            "load": 0.001218,
+            "load_without_intermission": 0.001188
+          },
+          "0x610": {
+            "id": 1552,
+            "frames": 23,
+            "frames_per_s": 0.986,
+            "bits_min": 120,
+            "bits_mean": 121.043,
+            "bits_max": 124,
+            "bits_per_s": 122.356,
+            "load": 0.000245,
+            "load_without_intermission": 0.000239
+          },
+          "0x611": {
+            "id": 1553,
+            "frames": 23,
+            "frames_per_s": 0.986,
+            "bits_min": 122,
+            "bits_mean": 122.0,
+            "bits_max": 122,
+            "bits_per_s": 123.3,
+            "load": 0.000247,
+            "load_without_intermission": 0.000241
+          },
+          "0x7e0": {
+            "id": 2016,
+            "frames": 36268,
+            "frames_per_s": 1555.423,
+            "bits_min": 111,
+            "bits_mean": 116.466,
+            "bits_max": 125,
+            "bits_per_s": 185820.163,
+            "load": 0.37164,
+            "load_without_intermission": 0.362308
+          },
+          "0x7e8": {
+            "id": 2024,
+            "frames": 2727,
+            "frames_per_s": 116.953,
+            "bits_min": 111,
+            "bits_mean": 113.804,
+            "bits_max": 119,
+            "bits_per_s": 13660.537,
+            "load": 0.027321,
+            "load_without_intermission": 0.026619
+          }
+        },
+        "load": 0.47652,
+        "load_without_intermission": 0.464524,
+        "groups": {
+          "node": {
+            "frames_per_s": 444.008,
+            "bits_per_s": 52439.601,
+            "load": 0.104879
+          },
+          "tester": {
+            "frames_per_s": 1555.423,
+            "bits_per_s": 185819.61,
+            "load": 0.371639
+          },
+          "other": {
+            "frames_per_s": 0.0,
+            "bits_per_s": 0.0,
+            "load": 0.0
+          }
+        }
+      }
+    }
+  },
+  "workdir": "/home/dev/fcn-build/bench/bus_load/20261123T234939Z-1332"
+}

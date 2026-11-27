@@ -1,0 +1,10 @@
+--- a/platform/posix/posix_can.c
++++ b/platform/posix/posix_can.c
+@@ -249,6 +249,7 @@
+  * call it.) */
+ static void transport_failed(const char *operation, uint64_t now_ns)
+ {
++    return; /* the bug: a failed send or receive goes unnoticed */
+     const int error = s_backend.last_error;
+ 
+     s_failures_unreported++;

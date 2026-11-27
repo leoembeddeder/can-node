@@ -1,0 +1,22 @@
+Bug 001: saved output of the failing tests, 2026-11-15.
+
+1. The system test that caught it, on its first run (scripts/test-system.sh):
+
+    E           assert 511584 < (256 * 1024)
+
+    tests/system/test_smoke.py:48: AssertionError
+    =========================== short test summary info ============================
+    FAILED tests/system/test_smoke.py::test_runs_for_the_requested_time_and_reports_statistics
+    ================== 1 failed, 5 passed, 1 deselected in 5.28s ===================
+
+2. The platform self-test (plat_selftest stack) with the fix removed, after the check for
+   this bug had been added to it:
+
+    {"test": "stack", "burned_bytes": 24576, "tasks": [{"name": "deep", "peak_bytes": 26084, "size_bytes": 524288}, {"name": "shallow", "peak_bytes": 512, "size_bytes": 524288}, {"name": "IDLE", "peak_bytes": 511552, "size_bytes": 524288}], "kernel_high_water_mark_is_meaningful": false}
+    stack report after shutdown is wrong: idle task reported, a task shows more than half its stack used
+    exit status: 1
+
+3. The same self-test with the fix:
+
+    {"test": "stack", "burned_bytes": 24576, "tasks": [{"name": "shallow", "peak_bytes": 512, "size_bytes": 524288}, {"name": "deep", "peak_bytes": 26084, "size_bytes": 524288}, {"name": "IDLE", "peak_bytes": 2056, "size_bytes": 524288}], "kernel_high_water_mark_is_meaningful": false}
+    exit status: 0

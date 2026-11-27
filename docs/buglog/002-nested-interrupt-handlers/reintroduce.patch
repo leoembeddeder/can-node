@@ -1,0 +1,14 @@
+--- a/platform/posix/posix_irq.c
++++ b/platform/posix/posix_irq.c
+@@ -79,11 +79,6 @@
+  * passed on unchanged. */
+ int __wrap_pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
+ {
+-    if ((t_handler_depth != 0U) && (how == SIG_UNBLOCK)) {
+-        /* Nothing changes; report the current mask if the caller asked for it. */
+-        return (oldset != NULL) ? __real_pthread_sigmask(SIG_BLOCK, NULL, oldset) : 0;
+-    }
+-
+     return __real_pthread_sigmask(how, set, oldset);
+ }
+ 

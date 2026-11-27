@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fcn-tools"
+version = "0.1.0"
+description = "Host tools, test helpers and measurement scripts for freertos-can-node"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+# Run-time dependencies are pinned in requirements.txt; nothing is resolved from here.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["tools"]
+include = ["fcn_tools*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python", "tests/system"]
+addopts = "-ra --strict-markers"
+timeout = 120
+junit_family = "xunit2"
+markers = [
+    "socketcan: needs a SocketCAN interface (vcan0); skipped when it is not available",
+    "timing: asserts on wall-clock behaviour of the host; may be repeated once in CI",
+    "slow: takes more than about ten seconds",
+]
+
+# python-can discovers bus implementations through this entry-point group. Once the package
+# is installed, can.Bus(interface="fcn_udp", channel=29500) opens the project's UDP bus, and
+# the stock python-can tools (can.logger, can.viewer) work on it.
+[project.entry-points."can.interface"]
+fcn_udp = "fcn_tools.udpbus:UdpBus"

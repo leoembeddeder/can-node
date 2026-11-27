@@ -1,0 +1,23 @@
+--- a/app/can_io.h
++++ b/app/can_io.h
+@@ -43,7 +43,7 @@
+  *  per tick has to keep up with a full bus at PLAT_CAN_MAX_BITRATE (can_io.c checks this at
+  *  compile time): 1 Mbit/s carries up to 21.3 of the shortest frames per millisecond, and
+  *  the margin above that lets the task catch up after a late tick. */
+-#define CAN_IO_RX_BATCH 32U
++#define CAN_IO_RX_BATCH 16U
+ 
+ /** Number of identifiers a handler can be registered for. */
+ #define CAN_IO_RX_HANDLERS 8U
+--- a/app/can_io.c
++++ b/app/can_io.c
+@@ -19,9 +19,6 @@
+ /* The receive task takes at most one batch per tick when frames keep coming (see rx_task), so
+  * a batch per tick must cover the most frames a full bus can deliver in a tick. Otherwise the
+  * receive FIFO overruns for as long as the load lasts. */
+-_Static_assert(((uint64_t)CAN_IO_RX_BATCH * SHORTEST_FRAME_BITS * (uint64_t)configTICK_RATE_HZ) >=
+-                   (uint64_t)PLAT_CAN_MAX_BITRATE,
+-               "CAN_IO_RX_BATCH is below the frame rate of a full bus at PLAT_CAN_MAX_BITRATE");
+ 
+ /* Notification bits of the two tasks. */
+ #define NOTIFY_RX_PENDING 0x01U /* receive task: the controller's receive FIFO has frames */

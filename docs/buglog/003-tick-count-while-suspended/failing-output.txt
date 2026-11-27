@@ -1,0 +1,20 @@
+Release build with reintroduce.patch applied (the tick wrapper watches the tick count
+again). Development laptop, 2026-11-15.
+
+$ plat_selftest suspend 5
+the tick count advanced by 9 ticks while the scheduler was suspended for 5001 us
+the tick count advanced by 96 ticks in the 100000 us after the scheduler was resumed
+{"test": "suspend", "suspended_ms": 5, "ticks_during": 9, "wall_during_us": 5001, "ticks_after": 96, "wall_after_us": 100000, "catch_ups": 10, "dropped_ticks": 0}
+exit status: 1
+
+$ plat_selftest suspend 20
+the tick count advanced by 106 ticks while the scheduler was suspended for 20001 us
+the tick count advanced by 1 ticks in the 100000 us after the scheduler was resumed
+{"test": "suspend", "suspended_ms": 20, "ticks_during": 106, "wall_during_us": 20001, "ticks_after": 1, "wall_after_us": 100000, "catch_ups": 102, "dropped_ticks": 18}
+exit status: 1
+
+$ plat_selftest suspend 100
+the tick count advanced by 518 ticks while the scheduler was suspended for 100002 us
+{"test": "suspend", "suspended_ms": 100, "ticks_during": 518, "wall_during_us": 100002, "ticks_after": 1, "wall_after_us": 100000, "catch_ups": 501, "dropped_ticks": 96}
+exit status: 1
+

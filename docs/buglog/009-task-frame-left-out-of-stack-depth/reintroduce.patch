@@ -1,0 +1,14 @@
+--- a/platform/posix/posix_stack.c
++++ b/platform/posix/posix_stack.c
+@@ -232,10 +232,7 @@
+             (here > (base + STACK_LOW_SKIP_BYTES + PAINT_MARGIN_BYTES))) {
+             entry->low = base + STACK_LOW_SKIP_BYTES;
+             entry->paint_end = here - PAINT_MARGIN_BYTES;
+-            /* The depth is counted from the top of the stack, not from `here`: the frame of
+-             * the task function, which called this one, lies above `here` and has to be in the
+-             * figure. */
+-            entry->top = base + size;
++            entry->top = here;
+             paint(entry->low, entry->paint_end);
+ 
+             /* Published only now: a report taken while the stack was half painted would
