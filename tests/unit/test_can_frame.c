@@ -116,7 +116,7 @@ static void test_unknown_flag_makes_a_frame_invalid(void)
 {
     TEST_ASSERT_TRUE(is_valid(0x123U, BOTH_FLAGS, 8U));
 
-    for (unsigned int bit = 2U; bit < 8U; bit++) {
+    for (unsigned int bit = 4U; bit < 8U; bit++) {
         const uint8_t unknown = (uint8_t)(1U << bit);
 
         TEST_ASSERT_FALSE(is_valid(0x123U, unknown, 8U));
@@ -467,6 +467,59 @@ static void test_key_order_equals_bitwise_arbitration_for_random_frames(void)
     TEST_ASSERT_GREATER_THAN_UINT(1000U, ties);
 }
 
+static void test_can_fd_frames_validate_flags_and_discrete_lengths(void)
+{
+    static const uint8_t valid_fd_lens[] = {0U, 1U,  2U,  3U,  4U,  5U,  6U,  7U,
+                                            8U, 12U, 16U, 20U, 24U, 32U, 48U, 64U};
+    static const uint8_t bad_fd_lens[] = {9U, 10U, 11U, 13U, 15U, 17U, 25U, 33U, 49U, 65U, 255U};
+
+    for (size_t i = 0U; i < (sizeof(valid_fd_lens) / sizeof(valid_fd_lens[0])); i++) {
+        TEST_ASSERT_TRUE(is_valid(0x123U, CAN_FLAG_FD, valid_fd_lens[i]));
+        TEST_ASSERT_TRUE(is_valid(0x123U, CAN_FLAG_FD | CAN_FLAG_BRS, valid_fd_lens[i]));
+        TEST_ASSERT_TRUE(
+            is_valid(0x1FFFFFFFU, CAN_FLAG_EXT | CAN_FLAG_FD | CAN_FLAG_BRS, valid_fd_lens[i]));
+    }
+
+    for (size_t i = 0U; i < (sizeof(bad_fd_lens) / sizeof(bad_fd_lens[0])); i++) {
+        TEST_ASSERT_FALSE(is_valid(0x123U, CAN_FLAG_FD, bad_fd_lens[i]));
+        TEST_ASSERT_FALSE(is_valid(0x123U, CAN_FLAG_FD | CAN_FLAG_BRS, bad_fd_lens[i]));
+    }
+
+    /* CAN FD never allows RTR; BRS is invalid without CAN_FLAG_FD. */
+    TEST_ASSERT_FALSE(is_valid(0x123U, CAN_FLAG_FD | CAN_FLAG_RTR, 8U));
+    TEST_ASSERT_FALSE(is_valid(0x123U, CAN_FLAG_BRS, 8U));
+}
+
+static void test_can_fd_length_and_dlc_helpers(void)
+{
+    static const uint8_t expected_lens[16] = {0U, 1U,  2U,  3U,  4U,  5U,  6U,  7U,
+                                              8U, 12U, 16U, 20U, 24U, 32U, 48U, 64U};
+
+    for (uint8_t dlc = 0U; dlc < 16U; dlc++) {
+        TEST_ASSERT_EQUAL_UINT8(expected_lens[dlc], can_fd_dlc_to_len(dlc));
+        TEST_ASSERT_TRUE(can_fd_len_is_valid(expected_lens[dlc]));
+        TEST_ASSERT_EQUAL_UINT8(expected_lens[dlc], can_fd_pad_len(expected_lens[dlc]));
+        TEST_ASSERT_EQUAL_UINT8(dlc, can_fd_len_to_dlc(expected_lens[dlc]));
+    }
+    TEST_ASSERT_EQUAL_UINT8(64U, can_fd_dlc_to_len(16U));
+    TEST_ASSERT_EQUAL_UINT8(64U, can_fd_dlc_to_len(255U));
+
+    TEST_ASSERT_EQUAL_UINT8(12U, can_fd_pad_len(9U));
+    TEST_ASSERT_EQUAL_UINT8(12U, can_fd_pad_len(10U));
+    TEST_ASSERT_EQUAL_UINT8(16U, can_fd_pad_len(13U));
+    TEST_ASSERT_EQUAL_UINT8(32U, can_fd_pad_len(25U));
+    TEST_ASSERT_EQUAL_UINT8(48U, can_fd_pad_len(33U));
+    TEST_ASSERT_EQUAL_UINT8(64U, can_fd_pad_len(49U));
+    TEST_ASSERT_EQUAL_UINT8(64U, can_fd_pad_len(100U));
+
+    TEST_ASSERT_EQUAL_UINT8(9U, can_fd_len_to_dlc(9U));
+    TEST_ASSERT_EQUAL_UINT8(15U, can_fd_len_to_dlc(65U));
+
+    TEST_ASSERT_FALSE(can_fd_len_is_valid(9U));
+    TEST_ASSERT_FALSE(can_fd_len_is_valid(63U));
+    TEST_ASSERT_FALSE(can_fd_len_is_valid(65U));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -475,6 +528,8 @@ int main(void)
     RUN_TEST(test_dlc_is_valid_up_to_8_in_every_kind_of_frame);
     RUN_TEST(test_unknown_flag_makes_a_frame_invalid);
     RUN_TEST(test_null_frame_is_invalid);
+    RUN_TEST(test_can_fd_frames_validate_flags_and_discrete_lengths);
+    RUN_TEST(test_can_fd_length_and_dlc_helpers);
     RUN_TEST(test_key_is_the_arbitration_field_with_the_first_bit_on_top);
     RUN_TEST(test_lower_identifier_wins);
     RUN_TEST(test_base_frame_beats_extended_frame_with_the_same_base_identifier);

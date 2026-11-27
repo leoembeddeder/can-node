@@ -44,7 +44,7 @@ static bool dummy_send(void *context, const can_frame_t *frame)
 }
 
 static bool dummy_indication(void *context, isotp_result_t result, const uint8_t *data,
-                             uint16_t length)
+                             uint32_t length)
 {
     (void)context;
     (void)result;
@@ -58,7 +58,7 @@ static uint8_t s_raw_buffer[5000];
 
 /* isotp_init() with one change from a valid call; the instance must stay as it was. */
 static bool init_with(const isotp_config_t *config, const isotp_callbacks_t *callbacks,
-                      uint8_t *buffer, uint16_t size)
+                      uint8_t *buffer, uint32_t size)
 {
     static isotp_t before;
     bool ok;
@@ -139,6 +139,28 @@ static void test_init_refuses_every_bad_argument(void)
     TEST_ASSERT_TRUE(init_with(&config, &good, s_raw_buffer, 100U));
     config.rx_stmin = 0x7FU;
     TEST_ASSERT_TRUE(init_with(&config, &good, s_raw_buffer, 100U));
+
+    /* CAN FD config validation: tx_dl defaults and legal discrete lengths. */
+    config = s_cfg;
+    config.can_fd = false;
+    config.can_fd_brs = true;
+    TEST_ASSERT_FALSE(init_with(&config, &good, s_raw_buffer, 100U));
+    config = s_cfg;
+    config.can_fd = false;
+    config.tx_dl = 12U;
+    TEST_ASSERT_FALSE(init_with(&config, &good, s_raw_buffer, 100U));
+    config = s_cfg;
+    config.can_fd = true;
+    config.tx_dl = 9U;
+    TEST_ASSERT_FALSE(init_with(&config, &good, s_raw_buffer, 100U));
+    config = s_cfg;
+    config.can_fd = true;
+    config.can_fd_brs = true;
+    config.tx_dl = 0U; /* defaults to 64 */
+    TEST_ASSERT_TRUE(init_with(&config, &good, s_raw_buffer, 100U));
+    TEST_ASSERT_EQUAL_UINT8(64U, s_raw.config.tx_dl);
+    config.tx_dl = 32U;
+    TEST_ASSERT_TRUE(init_with(&config, &good, s_raw_buffer, 100U));
 }
 
 /* A zeroed instance was never initialised: every call refuses it. NULL likewise. */
@@ -175,14 +197,12 @@ static void test_an_uninitialised_instance_is_refused(void)
     tb_check(&s_node);
 }
 
-/* Length 0 has no encoding (SF_DL 0 is reserved): refused, like a NULL pointer and lengths
- * above 4095. Nothing goes out and nothing is counted. */
-static void test_send_refuses_length_0_above_4095_and_null(void)
+/* Length 0 has no encoding (SF_DL 0 is reserved): refused, like a NULL pointer. Nothing goes
+ * out and nothing is counted. */
+static void test_send_refuses_length_0_and_null(void)
 {
     start();
     TEST_ASSERT_EQUAL(ISOTP_E_ARG, isotp_send(&s_node.tp, s_data, 0U, tb_now_us));
-    TEST_ASSERT_EQUAL(ISOTP_E_ARG, isotp_send(&s_node.tp, s_data, 4096U, tb_now_us));
-    TEST_ASSERT_EQUAL(ISOTP_E_ARG, isotp_send(&s_node.tp, s_data, UINT16_MAX, tb_now_us));
     TEST_ASSERT_EQUAL(ISOTP_E_ARG, isotp_send(&s_node.tp, NULL, 5U, tb_now_us));
     TEST_ASSERT_EQUAL_UINT32(0U, tb_waiting(&s_node));
     TEST_ASSERT_EQUAL_UINT32(0U, stats()->tx_requests);
@@ -211,30 +231,33 @@ static void test_send_refuses_a_second_message_while_one_is_sent(void)
     tb_check(&s_node);
 }
 
-/* A buffer longer than 4095 bytes: only 4095 are ever used. */
+/* A buffer above 4095 bytes receives a 32-bit escape FF message without touching guard bytes. */
 static uint32_t s_raw_messages;
+static uint32_t s_raw_last_length;
 
 static bool raw_indication(void *context, isotp_result_t result, const uint8_t *data,
-                           uint16_t length)
+                           uint32_t length)
 {
     (void)context;
     (void)data;
-    if ((result == ISOTP_RESULT_OK) && (length == ISOTP_MAX_LENGTH)) {
+    if (result == ISOTP_RESULT_OK) {
         s_raw_messages++;
+        s_raw_last_length = length;
     }
     return false;
 }
 
-static void test_a_buffer_above_4095_bytes_is_used_up_to_4095(void)
+static void test_a_buffer_above_4095_bytes_receives_escape_ff(void)
 {
     const isotp_callbacks_t callbacks = {.send_frame = dummy_send, .indication = raw_indication};
-    const uint8_t ff[8] = {0x1FU, 0xFFU, 1U, 2U, 3U, 4U, 5U, 6U};
+    const uint8_t ff[8] = {0x10U, 0x00U, 0x00U, 0x00U, 0x10U, 0x00U, 1U, 2U};
     can_frame_t frame = {.id = TB_NODE_RX, .dlc = 8U};
 
     s_raw_messages = 0U;
+    s_raw_last_length = 0U;
     (void)memset(s_raw_buffer, 0xA5, sizeof(s_raw_buffer));
     TEST_ASSERT_TRUE(isotp_init(&s_raw, &s_cfg, &callbacks, s_raw_buffer, 5000U));
-    TEST_ASSERT_EQUAL_UINT16(ISOTP_MAX_LENGTH, s_raw.buffer_size);
+    TEST_ASSERT_EQUAL_UINT32(5000U, s_raw.buffer_size);
     (void)memcpy(frame.data, ff, 8U);
     TEST_ASSERT_TRUE(isotp_on_frame(&s_raw, &frame, T0));
     TEST_ASSERT_TRUE(isotp_on_tx_done(&s_raw, T0));
@@ -244,8 +267,9 @@ static void test_a_buffer_above_4095_bytes_is_used_up_to_4095(void)
         TEST_ASSERT_TRUE(isotp_on_frame(&s_raw, &frame, T0 + i));
     }
     TEST_ASSERT_EQUAL_UINT32(1U, s_raw_messages);
-    for (uint32_t i = ISOTP_MAX_LENGTH; i < sizeof(s_raw_buffer); i++) {
-        TEST_ASSERT_EQUAL_HEX8_MESSAGE(0xA5U, s_raw_buffer[i], "a byte beyond 4095 was written");
+    TEST_ASSERT_EQUAL_UINT32(4096U, s_raw_last_length);
+    for (uint32_t i = 4096U; i < sizeof(s_raw_buffer); i++) {
+        TEST_ASSERT_EQUAL_HEX8_MESSAGE(0xA5U, s_raw_buffer[i], "a byte beyond 4096 was written");
     }
 }
 
@@ -304,11 +328,11 @@ static void test_a_single_frame_of_every_length_1_to_7(void)
 /* FF_DL in 12 bits, the high nibble in byte 0, and the first 6 data bytes. */
 static void test_the_first_frame_carries_ff_dl_and_6_bytes(void)
 {
-    const uint16_t lengths[] = {8U, 0x123U, 0x2FEU, ISOTP_MAX_LENGTH};
+    const uint32_t lengths[] = {8U, 0x123U, 0x2FEU, ISOTP_FF_DL_12BIT_MAX};
 
     start();
     for (uint32_t i = 0U; i < (sizeof(lengths) / sizeof(lengths[0])); i++) {
-        const uint16_t length = lengths[i];
+        const uint32_t length = lengths[i];
         const uint8_t expected[8] = {(uint8_t)(0x10U | (length >> 8U)),
                                      (uint8_t)(length & 0xFFU),
                                      s_data[0],
@@ -1028,6 +1052,297 @@ static void test_a_consecutive_frame_before_the_cts_is_out_is_ignored(void)
     tb_check(&s_node);
 }
 
+/* ------------------------------------------------------------------------------------------
+ * ISO 15765-2:2016 CAN FD and 32-bit escape FF tests
+ * ---------------------------------------------------------------------------------------- */
+
+static void test_canfd_single_frames_tx_1_to_62_conform_to_table_12_and_13(void)
+{
+    s_cfg.can_fd = true;
+    s_cfg.can_fd_brs = true;
+    s_cfg.tx_dl = 64U;
+    start_sized(TB_MAX_LENGTH);
+
+    for (uint8_t len = 1U; len <= ISOTP_FD_MAX_SF_DATA; len++) {
+        uint8_t expected[CAN_FD_MAX_DL];
+        const uint8_t can_dl = (len <= 7U) ? 8U : can_fd_pad_len((uint8_t)(2U + len));
+
+        (void)memset(expected, CC, sizeof(expected));
+        if (len <= 7U) {
+            expected[0] = len;
+            (void)memcpy(&expected[1], s_data, len);
+        } else {
+            expected[0] = 0x00U;
+            expected[1] = len;
+            (void)memcpy(&expected[2], s_data, len);
+        }
+        send(len);
+        tb_take_expect_len(&s_node, can_dl, expected);
+        TEST_ASSERT_TRUE(tb_confirm(&s_node));
+        expect_conf(ISOTP_RESULT_OK);
+    }
+    TEST_ASSERT_EQUAL_UINT32(62U, stats()->frames_out[ISOTP_FRAME_SF]);
+
+    /* 63 bytes exceeds (TX_DL - 2) for TX_DL = 64 -> must promote to FF (Table 14). */
+    send(63U);
+    TEST_ASSERT_EQUAL_UINT32(1U, stats()->frames_out[ISOTP_FRAME_FF]);
+    {
+        const can_frame_t ff = tb_take(&s_node);
+        TEST_ASSERT_EQUAL_UINT8(64U, ff.dlc);
+        TEST_ASSERT_EQUAL_HEX8(0x10U, ff.data[0]);
+        TEST_ASSERT_EQUAL_HEX8(63U, ff.data[1]);
+        TEST_ASSERT_EQUAL_HEX8_ARRAY(s_data, &ff.data[2], 62U);
+    }
+    TEST_ASSERT_TRUE(tb_confirm(&s_node));
+    tb_check(&s_node);
+}
+
+static void test_canfd_single_frames_rx_table_13_bounds(void)
+{
+    static const uint8_t fd_dls[] = {12U, 16U, 20U, 24U, 32U, 48U, 64U};
+    static const uint8_t min_sf[] = {8U, 11U, 15U, 19U, 23U, 31U, 47U};
+    uint8_t buf[CAN_FD_MAX_DL];
+    uint32_t rejected = 0U;
+
+    /* A classical instance rejects CAN_FLAG_FD frames as FOREIGN. */
+    start_sized(TB_MAX_LENGTH);
+    (void)memset(buf, CC, sizeof(buf));
+    buf[0] = 0x00U;
+    buf[1] = 8U;
+    {
+        can_frame_t fd_frame = {.id = TB_NODE_RX, .flags = CAN_FLAG_FD, .dlc = 12U};
+        (void)memcpy(fd_frame.data, buf, 12U);
+        s_node.given++;
+        TEST_ASSERT_FALSE(isotp_on_frame(&s_node.tp, &fd_frame, tb_now_us));
+        expect_ignored(ISOTP_IGNORED_FOREIGN, 1U);
+    }
+
+    s_cfg.can_fd = true;
+    s_cfg.tx_dl = 64U;
+    start_sized(TB_MAX_LENGTH);
+
+    for (size_t i = 0U; i < (sizeof(fd_dls) / sizeof(fd_dls[0])); i++) {
+        const uint8_t dlc = fd_dls[i];
+        const uint8_t lo = min_sf[i];
+        const uint8_t hi = (uint8_t)(dlc - 2U);
+
+        /* Non-zero low nibble is invalid when CAN_DL > 8. */
+        (void)memset(buf, CC, sizeof(buf));
+        buf[0] = 0x01U;
+        buf[1] = lo;
+        TEST_ASSERT_FALSE(tb_inject_fd(&s_node, dlc, buf));
+        rejected++;
+
+        /* Below minimum SF_DL for this CAN_DL (wrong container size, Table 13). */
+        buf[0] = 0x00U;
+        buf[1] = (uint8_t)(lo - 1U);
+        TEST_ASSERT_FALSE(tb_inject_fd(&s_node, dlc, buf));
+        rejected++;
+
+        /* Above maximum SF_DL for this CAN_DL. */
+        buf[1] = (uint8_t)(hi + 1U);
+        TEST_ASSERT_FALSE(tb_inject_fd(&s_node, dlc, buf));
+        rejected++;
+
+        /* Valid min and max SF_DL for this CAN_DL. */
+        for (uint32_t k = 0U; k < 2U; k++) {
+            const uint8_t sf_dl = (k == 0U) ? lo : hi;
+
+            (void)memset(buf, CC, sizeof(buf));
+            buf[0] = 0x00U;
+            buf[1] = sf_dl;
+            (void)memcpy(&buf[2], s_data, sf_dl);
+            TEST_ASSERT_TRUE(tb_inject_fd(&s_node, dlc, buf));
+            expect_ind(ISOTP_RESULT_OK, sf_dl);
+            expect_message(sf_dl);
+        }
+    }
+    expect_ignored(ISOTP_IGNORED_LENGTH, rejected);
+    tb_check(&s_node);
+}
+
+static void test_canfd_first_frame_and_cf_tx_and_rx(void)
+{
+    /* TX_DL = 64: 135-byte message = FF (62 B) + CF1 (63 B, dlc 64) + CF2 (10 B -> dlc 12). */
+    const uint32_t len = 135U;
+    uint8_t buf[CAN_FD_MAX_DL];
+
+    s_cfg.can_fd = true;
+    s_cfg.can_fd_brs = true;
+    s_cfg.tx_dl = 64U;
+    s_cfg.rx_stmin = 0x00U;
+    start_sized(TB_MAX_LENGTH);
+
+    send(len);
+    {
+        uint8_t exp_ff[64];
+
+        exp_ff[0] = (uint8_t)(0x10U | (len >> 8U));
+        exp_ff[1] = (uint8_t)(len & 0xFFU);
+        (void)memcpy(&exp_ff[2], s_data, 62U);
+        tb_take_expect_len(&s_node, 64U, exp_ff);
+        TEST_ASSERT_TRUE(tb_confirm(&s_node));
+    }
+    /* Receive FC CTS with STmin = 10 ms: STmin MUST NOT delay CF1 right after the FF. */
+    TEST_ASSERT_TRUE(fc_in(0U, 0U, 10U));
+    {
+        uint8_t exp_cf1[64];
+        uint8_t exp_cf2[12];
+
+        exp_cf1[0] = 0x21U;
+        (void)memcpy(&exp_cf1[1], &s_data[62], 63U);
+        tb_take_expect_len(&s_node, 64U, exp_cf1);
+        TEST_ASSERT_TRUE(tb_confirm(&s_node));
+
+        poll_at(tb_now_us + 10000U);
+        (void)memset(exp_cf2, CC, sizeof(exp_cf2));
+        exp_cf2[0] = 0x22U;
+        (void)memcpy(&exp_cf2[1], &s_data[125], 10U);
+        tb_take_expect_len(&s_node, 12U, exp_cf2);
+        TEST_ASSERT_TRUE(tb_confirm(&s_node));
+        expect_conf(ISOTP_RESULT_OK);
+    }
+
+    /* RX Table 14 check: 64-byte FF with FF_DL = 62 (< RX_DL - 1) must be ignored. */
+    (void)memset(buf, 0xAA, sizeof(buf));
+    buf[0] = 0x10U;
+    buf[1] = 62U;
+    TEST_ASSERT_FALSE(tb_inject_fd(&s_node, 64U, buf));
+    expect_ignored(ISOTP_IGNORED_LENGTH, 1U);
+
+    /* RX 135-byte CAN FD message -> FF(64) -> FC(8) -> CF1(64) -> CF2(12). */
+    buf[0] = (uint8_t)(0x10U | (len >> 8U));
+    buf[1] = (uint8_t)(len & 0xFFU);
+    (void)memcpy(&buf[2], s_data, 62U);
+    TEST_ASSERT_TRUE(tb_inject_fd(&s_node, 64U, buf));
+    expect_fc(0U, 0U, 0U);
+    TEST_ASSERT_TRUE(tb_confirm(&s_node));
+
+    buf[0] = 0x21U;
+    (void)memcpy(&buf[1], &s_data[62], 63U);
+    TEST_ASSERT_TRUE(tb_inject_fd(&s_node, 64U, buf));
+
+    (void)memset(buf, CC, sizeof(buf));
+    buf[0] = 0x22U;
+    (void)memcpy(&buf[1], &s_data[125], 10U);
+    TEST_ASSERT_TRUE(tb_inject_fd(&s_node, 12U, buf));
+    expect_ind(ISOTP_RESULT_OK, len);
+    expect_message(len);
+    tb_check(&s_node);
+}
+
+static void test_escape_first_frame_tx_and_rx_classical_and_canfd(void)
+{
+    const uint32_t len = 5000U;
+    uint8_t buf[64];
+
+    /* 1) Classical CAN (TX_DL = 8): 32-bit escape FF carries 2 data bytes + 714 CFs. */
+    start_sized(TB_MAX_LENGTH);
+    send(len);
+    {
+        const uint8_t exp_ff[8] = {0x10U,
+                                   0x00U,
+                                   (uint8_t)(len >> 24U),
+                                   (uint8_t)(len >> 16U),
+                                   (uint8_t)(len >> 8U),
+                                   (uint8_t)len,
+                                   s_data[0],
+                                   s_data[1]};
+        tb_take_expect(&s_node, exp_ff);
+        TEST_ASSERT_TRUE(tb_confirm(&s_node));
+    }
+    TEST_ASSERT_TRUE(fc_in(0U, 0U, 0U));
+    {
+        uint32_t offset = 2U;
+        uint32_t sn = 1U;
+
+        while (offset < len) {
+            const can_frame_t cf = tb_take_confirm(&s_node);
+            const uint32_t rem = len - offset;
+            const uint32_t chunk = (rem > 7U) ? 7U : rem;
+
+            TEST_ASSERT_EQUAL_UINT8(8U, cf.dlc);
+            TEST_ASSERT_EQUAL_HEX8((uint8_t)(0x20U | (sn & 0x0FU)), cf.data[0]);
+            TEST_ASSERT_EQUAL_HEX8_ARRAY(&s_data[offset], &cf.data[1], chunk);
+            offset += chunk;
+            sn++;
+        }
+        expect_conf(ISOTP_RESULT_OK);
+    }
+
+    /* 2) CAN FD (TX_DL = 64): 32-bit escape FF carries 58 data bytes + 79 CFs. */
+    s_cfg.can_fd = true;
+    s_cfg.tx_dl = 64U;
+    start_sized(TB_MAX_LENGTH);
+    send(len);
+    {
+        uint8_t exp_ff[64];
+
+        exp_ff[0] = 0x10U;
+        exp_ff[1] = 0x00U;
+        exp_ff[2] = (uint8_t)(len >> 24U);
+        exp_ff[3] = (uint8_t)(len >> 16U);
+        exp_ff[4] = (uint8_t)(len >> 8U);
+        exp_ff[5] = (uint8_t)len;
+        (void)memcpy(&exp_ff[6], s_data, 58U);
+        tb_take_expect_len(&s_node, 64U, exp_ff);
+        TEST_ASSERT_TRUE(tb_confirm(&s_node));
+    }
+    TEST_ASSERT_TRUE(fc_in(0U, 0U, 0U));
+    {
+        uint32_t offset = 58U;
+        uint32_t sn = 1U;
+
+        while (offset < len) {
+            const can_frame_t cf = tb_take_confirm(&s_node);
+            const uint32_t rem = len - offset;
+            const uint32_t chunk = (rem > 63U) ? 63U : rem;
+            const uint8_t exp_dlc =
+                (chunk == 63U) ? 64U : ((chunk <= 7U) ? 8U : can_fd_pad_len((uint8_t)(1U + chunk)));
+
+            TEST_ASSERT_EQUAL_UINT8(exp_dlc, cf.dlc);
+            TEST_ASSERT_EQUAL_HEX8((uint8_t)(0x20U | (sn & 0x0FU)), cf.data[0]);
+            TEST_ASSERT_EQUAL_HEX8_ARRAY(&s_data[offset], &cf.data[1], chunk);
+            offset += chunk;
+            sn++;
+        }
+        expect_conf(ISOTP_RESULT_OK);
+    }
+
+    /* 3) CAN FD RX of 5000-byte 32-bit escape FF message. */
+    buf[0] = 0x10U;
+    buf[1] = 0x00U;
+    buf[2] = (uint8_t)(len >> 24U);
+    buf[3] = (uint8_t)(len >> 16U);
+    buf[4] = (uint8_t)(len >> 8U);
+    buf[5] = (uint8_t)len;
+    (void)memcpy(&buf[6], s_data, 58U);
+    TEST_ASSERT_TRUE(tb_inject_fd(&s_node, 64U, buf));
+    expect_fc(0U, 0U, 0U);
+    TEST_ASSERT_TRUE(tb_confirm(&s_node));
+    {
+        uint32_t offset = 58U;
+        uint32_t sn = 1U;
+
+        while (offset < len) {
+            const uint32_t rem = len - offset;
+            const uint32_t chunk = (rem > 63U) ? 63U : rem;
+            const uint8_t dlc =
+                (chunk == 63U) ? 64U : ((chunk <= 7U) ? 8U : can_fd_pad_len((uint8_t)(1U + chunk)));
+
+            (void)memset(buf, CC, dlc);
+            buf[0] = (uint8_t)(0x20U | (sn & 0x0FU));
+            (void)memcpy(&buf[1], &s_data[offset], chunk);
+            TEST_ASSERT_TRUE(tb_inject_fd(&s_node, dlc, buf));
+            offset += chunk;
+            sn++;
+        }
+    }
+    expect_ind(ISOTP_RESULT_OK, len);
+    expect_message(len);
+    tb_check(&s_node);
+}
+
 /* ------------------------------------------------------------------------------------------ */
 
 int main(void)
@@ -1035,9 +1350,9 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_init_refuses_every_bad_argument);
     RUN_TEST(test_an_uninitialised_instance_is_refused);
-    RUN_TEST(test_send_refuses_length_0_above_4095_and_null);
+    RUN_TEST(test_send_refuses_length_0_and_null);
     RUN_TEST(test_send_refuses_a_second_message_while_one_is_sent);
-    RUN_TEST(test_a_buffer_above_4095_bytes_is_used_up_to_4095);
+    RUN_TEST(test_a_buffer_above_4095_bytes_receives_escape_ff);
     RUN_TEST(test_the_optional_callbacks_may_be_null);
     RUN_TEST(test_a_single_frame_of_every_length_1_to_7);
     RUN_TEST(test_the_first_frame_carries_ff_dl_and_6_bytes);
@@ -1076,5 +1391,9 @@ int main(void)
     RUN_TEST(test_table_fc_during_a_transmission_that_does_not_wait_for_one_is_ignored);
     RUN_TEST(test_an_ignored_frame_does_not_end_a_reception);
     RUN_TEST(test_a_consecutive_frame_before_the_cts_is_out_is_ignored);
+    RUN_TEST(test_canfd_single_frames_tx_1_to_62_conform_to_table_12_and_13);
+    RUN_TEST(test_canfd_single_frames_rx_table_13_bounds);
+    RUN_TEST(test_canfd_first_frame_and_cf_tx_and_rx);
+    RUN_TEST(test_escape_first_frame_tx_and_rx_classical_and_canfd);
     return UNITY_END();
 }

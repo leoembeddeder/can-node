@@ -44,7 +44,7 @@ static tb_end_t s_a; /* the tester */
 static tb_end_t s_b; /* the node */
 static tb_checker_t s_checker;
 static tb_link_t s_link;
-static uint8_t s_payload[2][ISOTP_MAX_LENGTH];
+static uint8_t s_payload[2][TB_MAX_LENGTH];
 
 /* xorshift32: the same "random" numbers on every run. */
 static uint32_t s_random;
@@ -72,7 +72,7 @@ void setUp(void)
 {
     tb_now_us = 1000000U;
     s_random = 0x150715U; /* read by the random runs of part 1 */
-    for (uint32_t i = 0U; i < ISOTP_MAX_LENGTH; i++) {
+    for (uint32_t i = 0U; i < TB_MAX_LENGTH; i++) {
         s_payload[0][i] = (uint8_t)((i * 13U) + 1U);
         s_payload[1][i] = (uint8_t)((i * 29U) ^ 0x5AU);
     }
@@ -102,14 +102,14 @@ static void pair_start(uint8_t a_bs, uint8_t a_stmin, uint8_t b_bs, uint8_t b_st
     a.rx_stmin = a_stmin;
     b.rx_bs = b_bs;
     b.rx_stmin = b_stmin;
-    tb_start(&s_a, &a, (uint16_t)ISOTP_MAX_LENGTH);
-    tb_start(&s_b, &b, (uint16_t)ISOTP_MAX_LENGTH);
+    tb_start(&s_a, &a, ISOTP_FF_DL_12BIT_MAX);
+    tb_start(&s_b, &b, ISOTP_FF_DL_12BIT_MAX);
     tb_checker_init(&s_checker, TESTER_TX, NODE_TX);
 }
 
 /* One message of `length` bytes from `from` (0: the tester, 1: the node) to the other, and the
  * bus run until it settles. */
-static void transfer(uint32_t from, uint16_t length)
+static void transfer(uint32_t from, uint32_t length)
 {
     tb_end_t *sender = (from == 0U) ? &s_a : &s_b;
     const tb_end_t *receiver = (from == 0U) ? &s_b : &s_a;
@@ -133,7 +133,7 @@ static void transfer(uint32_t from, uint16_t length)
         TEST_ASSERT_EQUAL(ISOTP_RESULT_OK, tb_last_conf(sender).result);
         TEST_ASSERT_EQUAL_UINT32_MESSAGE(messages + 1U, receiver->messages,
                                          at_value("length", length));
-        TEST_ASSERT_EQUAL_UINT16(length, receiver->message_length);
+        TEST_ASSERT_EQUAL_UINT32(length, receiver->message_length);
         TEST_ASSERT_EQUAL_HEX8_ARRAY(s_payload[from], receiver->message, length);
     }
     tb_check(&s_a);
@@ -148,10 +148,10 @@ static void every_length(uint32_t from, uint8_t bs, uint8_t stmin)
     } else {
         pair_start(bs, stmin, 0U, 0U);
     }
-    for (uint32_t length = 0U; length <= ISOTP_MAX_LENGTH; length++) {
-        transfer(from, (uint16_t)length);
+    for (uint32_t length = 0U; length <= ISOTP_FF_DL_12BIT_MAX; length++) {
+        transfer(from, length);
     }
-    TEST_ASSERT_EQUAL_UINT32(ISOTP_MAX_LENGTH, s_checker.messages[from]);
+    TEST_ASSERT_EQUAL_UINT32(ISOTP_FF_DL_12BIT_MAX, s_checker.messages[from]);
     TEST_ASSERT_EQUAL_UINT32(0U, s_checker.violations);
 }
 
@@ -208,7 +208,7 @@ static void test_block_boundaries_with_the_longest_stmin(void)
 
 static void test_both_directions_at_once(void)
 {
-    const uint16_t lengths[] = {1U, 7U, 8U, 100U, 1000U, ISOTP_MAX_LENGTH};
+    const uint32_t lengths[] = {1U, 7U, 8U, 100U, 1000U, ISOTP_FF_DL_12BIT_MAX};
 
     pair_start(2U, 0xF3U, 8U, 0x00U);
     for (uint32_t i = 0U; i < (sizeof(lengths) / sizeof(lengths[0])); i++) {
@@ -222,9 +222,9 @@ static void test_both_directions_at_once(void)
             TEST_ASSERT_TRUE(tb_run(&s_a, &s_b, &s_link, tb_now_us + TRANSFER_LIMIT_US));
             TEST_ASSERT_EQUAL(ISOTP_RESULT_OK, tb_last_conf(&s_a).result);
             TEST_ASSERT_EQUAL(ISOTP_RESULT_OK, tb_last_conf(&s_b).result);
-            TEST_ASSERT_EQUAL_UINT16(lengths[i], s_b.message_length);
+            TEST_ASSERT_EQUAL_UINT32(lengths[i], s_b.message_length);
             TEST_ASSERT_EQUAL_HEX8_ARRAY(s_payload[0], s_b.message, lengths[i]);
-            TEST_ASSERT_EQUAL_UINT16(lengths[j], s_a.message_length);
+            TEST_ASSERT_EQUAL_UINT32(lengths[j], s_a.message_length);
             TEST_ASSERT_EQUAL_HEX8_ARRAY(s_payload[1], s_a.message, lengths[j]);
             tb_check(&s_a);
             tb_check(&s_b);
@@ -243,7 +243,7 @@ static void test_both_directions_at_once(void)
 static void test_confirmations_after_the_answer(void)
 {
     const uint32_t lags[] = {0U, FRAME_US / 2U, 3U * FRAME_US, 20U * FRAME_US};
-    const uint16_t lengths[] = {1U, 7U, 8U, 13U, 14U, 20U, 111U, 112U, 500U, ISOTP_MAX_LENGTH};
+    const uint32_t lengths[] = {1U, 7U, 8U, 13U, 14U, 20U, 111U, 112U, 500U, ISOTP_FF_DL_12BIT_MAX};
 
     for (uint32_t l = 0U; l < (sizeof(lags) / sizeof(lags[0])); l++) {
         pair_start(1U, 0xF2U, 2U, 0x02U);
@@ -311,7 +311,7 @@ static uint8_t random_stmin(void)
     return choices[random_below(sizeof(choices))];
 }
 
-static uint16_t random_length(void)
+static uint32_t random_length(void)
 {
     const uint32_t kind = random_below(4U);
     uint32_t length;
@@ -321,9 +321,9 @@ static uint16_t random_length(void)
     } else if (kind == 1U) {
         length = 8U + random_below(100U);
     } else {
-        length = 1U + random_below(ISOTP_MAX_LENGTH);
+        length = 1U + random_below(ISOTP_FF_DL_12BIT_MAX);
     }
-    return (uint16_t)length;
+    return length;
 }
 
 /* A delivered message must be the one that was sent: no fault may damage a message that is
@@ -351,8 +351,8 @@ static void test_random_runs_with_lost_and_repeated_frames(void)
         b.rx_wft_max = (uint8_t)random_below(4U);
         a.tx_wft_max = (uint8_t)random_below(4U);
         b.n_br_us = 20000U + random_below(100000U);
-        tb_start(&s_a, &a, (uint16_t)ISOTP_MAX_LENGTH);
-        tb_start(&s_b, &b, (uint16_t)(64U + random_below(ISOTP_MAX_LENGTH - 64U)));
+        tb_start(&s_a, &a, ISOTP_FF_DL_12BIT_MAX);
+        tb_start(&s_b, &b, 64U + random_below(ISOTP_FF_DL_12BIT_MAX - 64U));
         s_link = (tb_link_t){.frame_us = FRAME_US,
                              .confirm_lag_us = random_below(4U) * FRAME_US,
                              .answer_first = random_below(2U) == 0U,
@@ -418,6 +418,41 @@ static void test_random_runs_with_lost_and_repeated_frames(void)
     TEST_ASSERT_TRUE(results[ISOTP_RESULT_BUFFER_OVFLW] > 0U);
 }
 
+static void test_canfd_pair_all_tx_dl_and_escape_ff(void)
+{
+    static const uint8_t tx_dls[] = {8U, 12U, 16U, 20U, 24U, 32U, 48U, 64U};
+    static const uint32_t extra_lengths[] = {1U,  7U,   8U,    9U,    10U,   11U,   14U,  15U,
+                                             18U, 22U,  30U,   31U,   46U,   47U,   62U,  63U,
+                                             64U, 127U, 1000U, 4095U, 4096U, 5000U, 8192U};
+
+    for (size_t d = 0U; d < (sizeof(tx_dls) / sizeof(tx_dls[0])); d++) {
+        isotp_config_t a = tb_config(TESTER_TX, NODE_TX);
+        isotp_config_t b = tb_config(NODE_TX, TESTER_TX);
+
+        a.can_fd = true;
+        a.can_fd_brs = true;
+        a.tx_dl = tx_dls[d];
+        a.rx_bs = 4U;
+        a.rx_stmin = 0xF2U;
+
+        b.can_fd = true;
+        b.can_fd_brs = true;
+        b.tx_dl = tx_dls[d];
+        b.rx_bs = 3U;
+        b.rx_stmin = 0x01U;
+
+        tb_start(&s_a, &a, TB_MAX_LENGTH);
+        tb_start(&s_b, &b, TB_MAX_LENGTH);
+        tb_checker_init_fd(&s_checker, TESTER_TX, NODE_TX, a.tx_dl, b.tx_dl, true);
+
+        for (size_t i = 0U; i < (sizeof(extra_lengths) / sizeof(extra_lengths[0])); i++) {
+            transfer(0U, extra_lengths[i]);
+            transfer(1U, extra_lengths[i]);
+        }
+        TEST_ASSERT_EQUAL_UINT32(0U, s_checker.violations);
+    }
+}
+
 #endif /* ISOTP_PAIR_PART */
 
 int main(void)
@@ -434,6 +469,7 @@ int main(void)
     RUN_TEST(test_both_directions_at_once);
     RUN_TEST(test_confirmations_after_the_answer);
     RUN_TEST(test_random_runs_with_lost_and_repeated_frames);
+    RUN_TEST(test_canfd_pair_all_tx_dl_and_escape_ff);
 #endif
     return UNITY_END();
 }

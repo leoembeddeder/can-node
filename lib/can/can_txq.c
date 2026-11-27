@@ -241,7 +241,8 @@ bool can_txq_publish(can_txq_t *queue, uint8_t slot, const can_frame_t *frame, u
 {
     bool accepted = false;
 
-    if ((slot < CAN_TXQ_CYCLIC_SLOTS) && (frame != NULL) && can_frame_is_valid(frame)) {
+    if ((slot < CAN_TXQ_CYCLIC_SLOTS) && (frame != NULL) && can_frame_is_valid(frame) &&
+        ((frame->flags & CAN_FLAG_FD) == 0U)) {
         can_txq_slot_t *entry = &queue->slots[slot];
         can_txq_slot_stats_t *counts = &queue->slot_stats[slot];
 
@@ -282,7 +283,7 @@ bool can_txq_enqueue(can_txq_t *queue, const can_frame_t *frame, uint64_t now_ns
 {
     bool accepted = false;
 
-    if ((frame != NULL) && can_frame_is_valid(frame)) {
+    if ((frame != NULL) && can_frame_is_valid(frame) && ((frame->flags & CAN_FLAG_FD) == 0U)) {
         /* "Full" has to mean full of frames that can still be sent. Without this, a frame
          * would be refused because of dead ones that only wait for the next poll, and whether
          * it is dropped would depend on when the transmit task last ran. */
